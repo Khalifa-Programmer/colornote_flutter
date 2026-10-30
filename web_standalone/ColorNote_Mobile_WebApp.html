@@ -1,0 +1,3559 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ColorNote Clone — تطبيق المفكرة والملاحظات الملونة</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --font-ar: 'Cairo', 'Inter', sans-serif;
+      --font-en: 'Inter', 'Cairo', sans-serif;
+    }
+    body {
+      font-family: var(--font-ar);
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body[dir="ltr"] {
+      font-family: var(--font-en);
+    }
+    /* Lined Paper Notebook Effect matching ColorNote Screenshot 3 & 4 */
+    .lined-paper {
+      background-color: transparent !important;
+      background-image: linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 34px,
+        rgba(0, 0, 0, 0.28) 34px,
+        rgba(0, 0, 0, 0.28) 35.5px,
+        transparent 35.5px
+      ) !important;
+      background-size: 100% 36px !important;
+      background-position: 0 0 !important;
+      background-repeat: repeat-y !important;
+      background-attachment: local !important;
+      line-height: 36px !important;
+      padding-top: 0px !important;
+    }
+    .dark-mode .lined-paper {
+      background-image: linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 34px,
+        rgba(255, 255, 255, 0.28) 34px,
+        rgba(255, 255, 255, 0.28) 35.5px,
+        transparent 35.5px
+      ) !important;
+    }
+    /* Sticky Note Curled Corner Effect */
+    .sticky-curl {
+      position: relative;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.14);
+    }
+    .sticky-curl::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 0;
+      height: 0;
+      border-style: solid;
+      border-width: 0 0 18px 18px;
+      border-color: transparent transparent rgba(0,0,0,0.18) transparent;
+      pointer-events: none;
+    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.35);
+      border-radius: 9999px;
+    }
+    .note-textarea {
+      resize: none;
+      outline: none;
+      background-color: transparent;
+      line-height: 36px;
+    }
+    @keyframes popIn {
+      0% { opacity: 0; transform: scale(0.95); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    .animate-pop {
+      animation: popIn 0.16s ease-out forwards;
+    }
+    .rich-editor-area:empty:before {
+      content: attr(data-placeholder);
+      color: #94a3b8;
+      pointer-events: none;
+    }
+    .amoled-mode #mainViewport {
+      background-color: #000000 !important;
+      color: #ffffff !important;
+    }
+  </style>
+</head>
+<body class="bg-slate-200 text-slate-900 min-h-screen flex flex-col items-center justify-start sm:py-4 transition-colors duration-200" id="appBody">
+
+  <!-- Top Desktop Context Banner & Quick Toolbar -->
+  <div class="w-full max-w-4xl px-3 mb-2 hidden sm:flex items-center justify-between text-xs text-slate-600 dark:text-slate-300">
+    <div class="flex items-center gap-2">
+      <span class="inline-flex items-center gap-1.5 font-semibold text-slate-800 bg-amber-200 border border-amber-400 px-2.5 py-1 rounded-md shadow-sm">
+        <span class="w-2.5 h-2.5 rounded-sm bg-red-600 inline-block"></span>
+        ColorNote Clone (REA Clean-Room)
+      </span>
+      <span id="topHintText" class="text-slate-600">كلمة المرور الافتراضية للملاحظات المقفلة: <code class="bg-white px-1.5 py-0.5 rounded border font-mono font-bold text-slate-800">1234</code></span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button type="button" id="btnDesktopWidthToggle" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 px-2.5 py-1 rounded-md shadow-sm font-medium transition">
+        تبديل عرض الهاتف / الشاشة الكاملة
+      </button>
+    </div>
+  </div>
+
+  <!-- Main App Shell (Phone or Full Width responsive container) -->
+  <div id="appShell" class="w-full max-w-md sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col bg-[#f3f3f3] border border-slate-300 min-h-screen sm:min-h-[820px] sm:max-h-[880px] relative transition-all duration-200">
+
+    <!-- Android Simulated Status Bar -->
+    <div class="bg-[#212121] text-white text-[11px] px-3 py-1 flex items-center justify-between select-none shrink-0">
+      <div class="flex items-center gap-1.5">
+        <span class="font-semibold tracking-wide" id="statusBarClock">11:43 AM</span>
+        <span id="statusBarPinnedIndicator" class="hidden text-amber-300 font-medium items-center gap-1">
+          • 🔔 <span id="statusBarPinnedCount">1</span>
+        </span>
+      </div>
+      <div class="flex items-center gap-2 opacity-90">
+        <span>WIFI</span>
+        <span>100% 🔋</span>
+      </div>
+    </div>
+
+    <!-- ColorNote Classic App Bar -->
+    <header class="bg-white border-b border-slate-300 px-3 py-2.5 flex items-center justify-between shrink-0 shadow-sm z-10" id="mainAppBar">
+      <div class="flex items-center gap-2.5">
+        <!-- Authentic Sticky Note App Icon -->
+        <div class="w-8 h-8 rounded bg-gradient-to-br from-yellow-200 via-yellow-300 to-amber-400 border border-amber-500 shadow-sm flex flex-col items-center justify-center relative overflow-hidden shrink-0">
+          <span class="text-[8px] font-black text-red-600 tracking-tighter leading-none transform -rotate-6 border-b border-red-600">NOTE</span>
+          <div class="w-2.5 h-2.5 bg-amber-600/30 absolute bottom-0 right-0"></div>
+        </div>
+        <div>
+          <h1 class="text-base font-bold tracking-tight text-slate-800 leading-tight" id="appTitleHeader">ColorNote</h1>
+          <p class="text-[10px] text-slate-500 leading-none" id="appSubtitleHeader">المفكرة الملونة الذكية</p>
+        </div>
+      </div>
+
+      <!-- Top Right Actions: Color Grid Filter, View Mode, Language, Theme, More Menu -->
+      <div class="flex items-center gap-1">
+        <!-- 3x3 Color Grid Button (Exact match to Screenshot 1) -->
+        <button type="button" id="btnOpenColorFilter" title="فرز وتصفية حسب اللون" class="p-1.5 rounded hover:bg-slate-100 active:bg-slate-200 transition relative">
+          <div class="grid grid-cols-3 gap-[2px] w-5 h-5 p-[1px] border border-slate-400 rounded-[2px] bg-white">
+            <span class="bg-red-500 block rounded-[1px]"></span>
+            <span class="bg-orange-400 block rounded-[1px]"></span>
+            <span class="bg-yellow-400 block rounded-[1px]"></span>
+            <span class="bg-green-500 block rounded-[1px]"></span>
+            <span class="bg-blue-500 block rounded-[1px]"></span>
+            <span class="bg-purple-500 block rounded-[1px]"></span>
+            <span class="bg-slate-800 block rounded-[1px]"></span>
+            <span class="bg-slate-400 block rounded-[1px]"></span>
+            <span class="bg-slate-100 border border-slate-300 block rounded-[1px]"></span>
+          </div>
+          <span id="activeColorBadge" class="hidden absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-white"></span>
+        </button>
+
+        <!-- View Mode Switcher (List / Grid / Details / Large) -->
+        <button type="button" id="btnCycleViewMode" title="تغيير طريقة العرض" class="p-1.5 rounded hover:bg-slate-100 text-slate-700 text-xs font-semibold flex items-center gap-1 border border-transparent hover:border-slate-200">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"></path>
+          </svg>
+          <span id="viewModeLabel" class="hidden xs:inline text-[11px]">قائمة</span>
+        </button>
+
+        <!-- Language Switcher (AR / EN) -->
+        <button type="button" id="btnToggleLang" title="تبديل اللغة العربية / الإنجليزية" class="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold border border-slate-300 transition">
+          EN
+        </button>
+
+        <!-- KiteTech App Bar Color / AMOLED Style Switcher -->
+        <button type="button" id="btnCycleAppThemeStyle" title="تغيير مظهر التطبيق (ColorNote / KiteTech Green / Blue / AMOLED)" class="px-1.5 py-1 rounded bg-emerald-100 hover:bg-emerald-200 text-emerald-900 text-[10px] font-bold border border-emerald-400 transition">
+          🎨 مظهر
+        </button>
+
+        <!-- Theme Switcher (Light / Dark) -->
+        <button type="button" id="btnToggleTheme" title="الوضع الليلي / النهاري" class="p-1.5 rounded hover:bg-slate-100 text-slate-700 transition">
+          <span id="themeIcon">🌙</span>
+        </button>
+
+        <!-- Top 3-Dots Overflow Menu -->
+        <div class="relative">
+          <button type="button" id="btnTopOverflow" title="خيارات إضافية" class="p-1.5 rounded hover:bg-slate-100 text-slate-700 font-bold">
+            ⋮
+          </button>
+          <div id="topOverflowDropdown" class="hidden absolute left-0 rtl:left-0 ltr:right-0 ltr:left-auto mt-1 w-48 bg-white rounded-lg shadow-xl border border-slate-200 py-1 z-40 text-xs text-slate-800">
+            <button type="button" data-overflow-action="sort" class="w-full text-start px-3 py-2 hover:bg-slate-100 flex items-center justify-between">
+              <span id="menuSortText">ترتيب الملاحظات</span>
+              <span>⇅</span>
+            </button>
+            <button type="button" data-overflow-action="view" class="w-full text-start px-3 py-2 hover:bg-slate-100 flex items-center justify-between">
+              <span id="menuViewText">طريقة العرض</span>
+              <span>⊞</span>
+            </button>
+            <button type="button" data-overflow-action="colorFilter" class="w-full text-start px-3 py-2 hover:bg-slate-100 flex items-center justify-between">
+              <span id="menuColorText">تصفية بالألوان</span>
+              <span>🎨</span>
+            </button>
+            <button type="button" data-overflow-action="masterPin" class="w-full text-start px-3 py-2 hover:bg-slate-100 flex items-center justify-between">
+              <span id="menuPinText">كلمة المرور الرئيسية</span>
+              <span>🔒</span>
+            </button>
+            <button type="button" data-overflow-action="backup" class="w-full text-start px-3 py-2 hover:bg-slate-100 flex items-center justify-between border-t border-slate-100">
+              <span id="menuBackupText">تصدير نسخة احتياطية</span>
+              <span>💾</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Sub-Header Sort Bar (Exact match to Screenshot 1: "Sort by color ▼") -->
+    <div id="sortSubBar" class="bg-[#e4e4e4] border-b border-slate-300 px-3 py-1.5 flex items-center justify-between text-xs text-slate-700 shrink-0">
+      <div class="flex items-center gap-1.5">
+        <span id="notesCountBadge" class="bg-slate-700 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">8</span>
+        <button type="button" id="btnClearColorFilter" class="hidden items-center gap-1 bg-white border border-slate-300 px-2 py-0.5 rounded-full text-[11px] font-medium shadow-sm hover:bg-red-50">
+          <span id="activeColorFilterDot" class="w-2.5 h-2.5 rounded-full inline-block"></span>
+          <span id="activeColorFilterName">أصفر</span>
+          <span class="text-red-500 font-bold">×</span>
+        </button>
+      </div>
+
+      <button type="button" id="btnOpenSortModal" class="font-semibold text-slate-800 hover:text-teal-700 flex items-center gap-1 mx-auto">
+        <span id="currentSortLabel">فرز حسب اللون</span>
+        <span class="text-[10px]">▼</span>
+      </button>
+
+      <div class="text-[11px] text-slate-500 font-medium" id="currentViewBadge">قائمة</div>
+    </div>
+
+    <!-- MAIN CONTENT AREA (Scrollable Views) -->
+    <main class="flex-1 overflow-y-auto relative pb-20" id="mainViewport">
+
+      <!-- VIEW 1: NOTES LIST / GRID + KITETECH FOLDERS SYSTEM -->
+      <section id="viewNotes" class="p-1.5 space-y-1.5">
+        <!-- KiteTech Folders Bar -->
+        <div class="bg-white rounded-lg border border-slate-300 p-1.5 shadow-sm space-y-1.5">
+          <div class="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+            <button type="button" id="btnToggleFoldersListMode" title="عرض شاشة المجلدات الكاملة (Folders View)" class="px-2 py-1 rounded text-[11px] font-bold bg-slate-800 text-white shrink-0 flex items-center gap-1">
+              <span>🗂️</span>
+              <span id="lblFoldersModeBtn">المجلدات</span>
+            </button>
+            <div id="foldersPillsStrip" class="flex items-center gap-1 overflow-x-auto"></div>
+            <button type="button" id="btnOpenNewFolderBox" title="إنشاء مجلد جديد" class="px-2 py-1 rounded text-[11px] font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 shrink-0">
+              + مجلد
+            </button>
+          </div>
+          <!-- Inline Add Folder Box -->
+          <div id="newFolderInlineBox" class="hidden flex items-center gap-1.5 pt-1 border-t border-slate-100">
+            <input type="text" id="inputNewFolderName" placeholder="اسم المجلد الجديد (مثلاً: مشاريع، وصفات...)" class="flex-1 bg-slate-50 border border-slate-300 rounded px-2 py-1 text-xs text-slate-800" />
+            <button type="button" id="btnConfirmAddFolder" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-2.5 py-1 rounded">حفظ</button>
+            <button type="button" id="btnCancelAddFolder" class="bg-slate-200 text-slate-700 text-xs font-bold px-2 py-1 rounded">✕</button>
+          </div>
+        </div>
+
+        <!-- KiteTech Full Folders Directory List (Screenshot 1 Right Phone) -->
+        <div id="foldersDirectoryContainer" class="hidden bg-white rounded-lg border border-slate-300 divide-y divide-slate-200 shadow-sm"></div>
+
+        <!-- Notes List / Grid Container -->
+        <div id="notesContainer"></div>
+      </section>
+
+      <!-- VIEW 2: CALENDAR TAB (Monthly Calendar with Sticky Note Bars) -->
+      <section id="viewCalendar" class="hidden p-2 space-y-2">
+        <div class="bg-white rounded-lg border border-slate-300 p-2.5 shadow-sm">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-1">
+              <button type="button" id="btnCalPrevMonth" class="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs">◀</button>
+              <button type="button" id="btnCalToday" class="px-2.5 py-1 rounded bg-teal-600 hover:bg-teal-700 text-white font-semibold text-xs" id="lblCalTodayBtn">اليوم</button>
+              <button type="button" id="btnCalNextMonth" class="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs">▶</button>
+            </div>
+            <h2 id="calendarMonthTitle" class="text-sm font-bold text-slate-800">أكتوبر 2026</h2>
+          </div>
+
+          <!-- Days of week header -->
+          <div class="grid grid-cols-7 gap-1 text-center text-[11px] font-bold text-slate-500 pb-1 border-b border-slate-200" id="calendarWeekdaysHeader">
+            <div>أحد</div><div>إثنين</div><div>ثلاثاء</div><div>أربعاء</div><div>خميس</div><div>جمعة</div><div>سبت</div>
+          </div>
+
+          <!-- Calendar Days Grid -->
+          <div id="calendarGrid" class="grid grid-cols-7 gap-1 mt-1"></div>
+        </div>
+
+        <!-- Selected Day Notes Panel -->
+        <div class="bg-white rounded-lg border border-slate-300 p-3 shadow-sm">
+          <div class="flex items-center justify-between mb-2 pb-1.5 border-b border-slate-100">
+            <div>
+              <h3 class="text-xs font-bold text-slate-800" id="selectedDateHeading">ملاحظات وتذكيرات اليوم المحدد</h3>
+              <p class="text-[11px] text-slate-500" id="selectedDateSub">اختر يوماً لإضافة ملاحظة مجدولة</p>
+            </div>
+            <button type="button" id="btnAddNoteForSelectedDate" class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold px-2.5 py-1.5 rounded shadow-sm flex items-center gap-1">
+              <span>+</span>
+              <span id="lblAddCalendarNote">إضافة لهذا اليوم</span>
+            </button>
+          </div>
+          <div id="calendarDayNotesList" class="space-y-1.5"></div>
+        </div>
+      </section>
+
+      <!-- VIEW 3: SEARCH TAB (Instant Search + Color Swatches + Type Filter) -->
+      <section id="viewSearch" class="hidden p-2.5 space-y-2.5">
+        <div class="bg-white rounded-lg border border-slate-300 p-2.5 shadow-sm space-y-2.5">
+          <div class="relative">
+            <input type="text" id="searchInput" placeholder="ابحث في عناوين ومحتوى الملاحظات..." class="w-full bg-slate-100 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500" />
+            <button type="button" id="btnClearSearch" class="hidden absolute left-2.5 rtl:left-2.5 ltr:right-2.5 ltr:left-auto top-2 text-slate-400 hover:text-slate-700 font-bold text-sm">✕</button>
+          </div>
+
+          <!-- Quick Color Filter Strip inside Search -->
+          <div>
+            <p class="text-[11px] font-semibold text-slate-500 mb-1.5" id="lblSearchByColor">تصفية سريعة حسب اللون:</p>
+            <div id="searchColorStrip" class="flex items-center gap-1.5 flex-wrap"></div>
+          </div>
+
+          <!-- Type Filter Chips -->
+          <div class="flex items-center gap-1.5 flex-wrap pt-1 border-t border-slate-100" id="searchTypeChips">
+            <button type="button" data-search-type="all" class="search-type-chip px-2.5 py-1 rounded-full text-xs font-semibold bg-teal-600 text-white">الكل</button>
+            <button type="button" data-search-type="text" class="search-type-chip px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">📝 نصية</button>
+            <button type="button" data-search-type="checklist" class="search-type-chip px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">☑️ قوائم مهام</button>
+            <button type="button" data-search-type="locked" class="search-type-chip px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">🔒 مقفلة</button>
+            <button type="button" data-search-type="reminder" class="search-type-chip px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">⏰ تذكيرات</button>
+            <button type="button" data-search-type="done" class="search-type-chip px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">✓ منجزة</button>
+          </div>
+        </div>
+
+        <div id="searchResultsContainer" class="space-y-1"></div>
+      </section>
+
+      <!-- VIEW 4: STICKY WIDGETS SIMULATOR (Exact match to Screenshot 2: "Keep sticky notes in sight") -->
+      <section id="viewWidgets" class="hidden p-3 space-y-3 bg-gradient-to-b from-sky-800 via-teal-800 to-slate-900 min-h-[680px] text-white rounded-b-lg">
+        <div class="flex items-center justify-between border-b border-white/15 pb-2">
+          <div>
+            <h2 class="text-sm font-bold text-white flex items-center gap-1.5" id="lblWidgetsTitle">
+              <span>📌</span>
+              <span>ودجت الشاشة الرئيسية (Sticky Notes Widgets)</span>
+            </h2>
+            <p class="text-[11px] text-sky-200" id="lblWidgetsSubtitle">تفاعل مع الملصقات مباشرة أو ثبّت أي ملاحظة عبر زر 📌 داخل المحرر</p>
+          </div>
+          <button type="button" id="btnPinMoreWidgets" class="bg-white/15 hover:bg-white/25 text-white text-xs px-2.5 py-1 rounded-md font-semibold border border-white/20">
+            + تثبيت ملاحظة
+          </button>
+        </div>
+
+        <!-- 2x2 Large Sticky Note Widgets Grid (Just like top half of Screenshot 2) -->
+        <div id="largeWidgetsGrid" class="grid grid-cols-2 gap-2.5"></div>
+
+        <!-- 1x1 Mini Sticky Note Shortcuts Grid (Just like bottom half of Screenshot 2) -->
+        <div class="pt-2">
+          <p class="text-[11px] font-semibold text-sky-200 mb-2" id="lblMiniWidgetsHeader">اختصارات الملاحظات المصغرة (1×1 Stickers):</p>
+          <div id="miniWidgetsGrid" class="grid grid-cols-4 gap-2"></div>
+        </div>
+      </section>
+
+      <!-- VIEW 5: MORE / ARCHIVE / TRASH / SETTINGS / REA SPEC -->
+      <section id="viewMore" class="hidden p-2.5 space-y-2.5">
+        <!-- Sub-navigation pills inside More -->
+        <div class="grid grid-cols-4 gap-1 bg-white p-1 rounded-lg border border-slate-300 shadow-sm text-xs font-bold">
+          <button type="button" data-more-tab="archive" class="more-tab-btn py-1.5 rounded bg-teal-600 text-white">📥 الأرشيف</button>
+          <button type="button" data-more-tab="trash" class="more-tab-btn py-1.5 rounded text-slate-700 hover:bg-slate-100">🗑️ المحذوفات</button>
+          <button type="button" data-more-tab="settings" class="more-tab-btn py-1.5 rounded text-slate-700 hover:bg-slate-100">⚙️ الإعدادات</button>
+          <button type="button" data-more-tab="rea" class="more-tab-btn py-1.5 rounded text-slate-700 hover:bg-slate-100">🔍 بنية REA</button>
+        </div>
+
+        <!-- Sub-panel: Archive -->
+        <div id="morePanelArchive" class="bg-white rounded-lg border border-slate-300 p-3 shadow-sm space-y-2">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+            <div>
+              <h3 class="text-sm font-bold text-slate-800" id="lblArchiveHeader">الأرشيف (Archive)</h3>
+              <p class="text-[11px] text-slate-500" id="lblArchiveDesc">الملاحظات المؤرشفة المحفوظة للرجوع إليها لاحقاً</p>
+            </div>
+            <span id="archiveCountBadge" class="bg-slate-200 text-slate-800 text-xs font-bold px-2 py-0.5 rounded-full">0</span>
+          </div>
+          <div id="archiveListContainer" class="space-y-1.5"></div>
+        </div>
+
+        <!-- Sub-panel: Trash Bin -->
+        <div id="morePanelTrash" class="hidden bg-white rounded-lg border border-slate-300 p-3 shadow-sm space-y-2">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+            <div>
+              <h3 class="text-sm font-bold text-slate-800" id="lblTrashHeader">سلة المحذوفات (Trash Can)</h3>
+              <p class="text-[11px] text-slate-500" id="lblTrashDesc">يمكنك استعادة الملاحظات المحذوفة أو إفراغ السلة نهائياً</p>
+            </div>
+            <button type="button" id="btnEmptyTrash" class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-2.5 py-1 rounded shadow-sm">
+              إفراغ السلة
+            </button>
+          </div>
+          <div id="trashListContainer" class="space-y-1.5"></div>
+        </div>
+
+        <!-- Sub-panel: Settings, Master Password & Backup -->
+        <div id="morePanelSettings" class="hidden bg-white rounded-lg border border-slate-300 p-3 shadow-sm space-y-4">
+          <!-- Master Password Section -->
+          <div class="border-b border-slate-200 pb-3 space-y-2">
+            <h3 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+              <span>🔒</span>
+              <span id="lblSettingsPinTitle">كلمة المرور الرئيسية (Master Password)</span>
+            </h3>
+            <p class="text-xs text-slate-600" id="lblSettingsPinDesc">تُستخدم لقفل وفتح الملاحظات الخاصة (مثل ملاحظة "خطة العمل / Business plan").</p>
+            <div class="flex items-center gap-2">
+              <input type="password" id="inputNewMasterPin" placeholder="أدخل رمز PIN جديد (مثلاً 1234)" class="flex-1 bg-slate-100 border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-800" />
+              <button type="button" id="btnSaveMasterPin" class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold px-3 py-1.5 rounded">
+                حفظ الرمز
+              </button>
+            </div>
+          </div>
+
+          <!-- Color Category Names Customization -->
+          <div class="border-b border-slate-200 pb-3 space-y-2">
+            <h3 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+              <span>🎨</span>
+              <span id="lblColorLabelsTitle">تسميات تصنيفات الألوان التسعة</span>
+            </h3>
+            <div id="settingsColorLabelsGrid" class="grid grid-cols-1 gap-1.5"></div>
+          </div>
+
+          <!-- Backup & Restore -->
+          <div class="space-y-2">
+            <h3 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+              <span>💾</span>
+              <span id="lblBackupRestoreTitle">النسخ الاحتياطي والاستعادة (SD / JSON Backup)</span>
+            </h3>
+            <div class="flex flex-wrap gap-2">
+              <button type="button" id="btnExportBackupJson" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded shadow-sm">
+                ⬇️ تنزيل نسخة احتياطية (.json)
+              </button>
+              <label class="bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold px-3 py-1.5 rounded shadow-sm cursor-pointer">
+                ⬆️ استيراد نسخة (.json)
+                <input type="file" id="inputImportBackupJson" accept=".json" class="hidden" />
+              </label>
+              <button type="button" id="btnResetDemoNotes" class="bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-400 text-xs font-semibold px-3 py-1.5 rounded">
+                🔄 استعادة البيانات التجريبية الأصلية
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sub-panel: REA Reverse Engineering Spec & Live SQLite Table Inspector -->
+        <div id="morePanelRea" class="hidden bg-white rounded-lg border border-slate-300 p-3 shadow-sm space-y-3 text-xs">
+          <div class="bg-slate-900 text-slate-100 p-3 rounded-lg space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="text-amber-400 font-bold">REA Target Package</span>
+              <code class="text-[11px] bg-slate-800 px-2 py-0.5 rounded text-teal-300">com.socialnmobile.dictapps.notepad.color.note</code>
+            </div>
+            <p class="text-[11px] text-slate-300">تحليل الهندسة العكسية النظيفة (Clean-Room Reconstruction) لقاعدة البيانات <code class="text-amber-300">colornote.db</code> وهيكلية المكونات.</p>
+          </div>
+
+          <div class="space-y-1.5">
+            <h4 class="font-bold text-slate-800">1. جدول SQLite المباشر (<code class="text-teal-700">SELECT * FROM notes</code>):</h4>
+            <div class="overflow-x-auto border border-slate-200 rounded">
+              <table class="w-full text-start border-collapse text-[11px]">
+                <thead class="bg-slate-100 text-slate-700 border-b border-slate-200">
+                  <tr>
+                    <th class="p-1.5 border-e">_id</th>
+                    <th class="p-1.5 border-e">type</th>
+                    <th class="p-1.5 border-e">title</th>
+                    <th class="p-1.5 border-e">color</th>
+                    <th class="p-1.5 border-e">checked</th>
+                    <th class="p-1.5 border-e">locked</th>
+                    <th class="p-1.5">status</th>
+                  </tr>
+                </thead>
+                <tbody id="reaSqliteTableBody" class="divide-y divide-slate-100 font-mono"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Floating Action Button (+) Centered above Bottom Bar (Exact match to Screenshot 1) -->
+    <div class="absolute bottom-11 left-1/2 -translate-x-1/2 z-20">
+      <button type="button" id="btnFabAdd" title="إضافة ملاحظة جديدة" class="w-13 h-13 w-[52px] h-[52px] rounded-full bg-[#009688] hover:bg-[#00796b] active:scale-95 text-white shadow-lg border-2 border-white flex items-center justify-center text-3xl font-light transition">
+        +
+      </button>
+    </div>
+
+    <!-- Bottom Navigation Bar (5 Slots matching ColorNote) -->
+    <nav class="bg-white border-t border-slate-300 h-14 px-2 grid grid-cols-5 items-center text-[11px] text-slate-600 shrink-0 z-10 select-none">
+      <button type="button" data-nav-tab="notes" class="nav-tab-btn flex flex-col items-center justify-center py-1 text-teal-700 font-bold">
+        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+        </svg>
+        <span id="navLblNotes">الملاحظات</span>
+      </button>
+
+      <button type="button" data-nav-tab="calendar" class="nav-tab-btn flex flex-col items-center justify-center py-1 hover:text-slate-900">
+        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+        </svg>
+        <span id="navLblCalendar">التقويم</span>
+      </button>
+
+      <!-- Center spacer for docked FAB -->
+      <div class="flex flex-col items-center justify-end h-full pb-1 pointer-events-none">
+        <span class="text-[10px] text-teal-700 font-bold mt-6" id="navLblNew">جديد</span>
+      </div>
+
+      <button type="button" data-nav-tab="search" class="nav-tab-btn flex flex-col items-center justify-center py-1 hover:text-slate-900">
+        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+        </svg>
+        <span id="navLblSearch">البحث</span>
+      </button>
+
+      <button type="button" data-nav-tab="more" class="nav-tab-btn flex flex-col items-center justify-center py-1 hover:text-slate-900">
+        <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7"></path>
+        </svg>
+        <span id="navLblMore">المزيد</span>
+      </button>
+    </nav>
+
+    <!-- Quick Floating Widget Preview Pill at bottom corner of viewport -->
+    <button type="button" id="btnQuickWidgetsTab" class="absolute bottom-16 right-3 rtl:right-auto rtl:left-3 bg-slate-900/90 hover:bg-slate-800 text-amber-300 text-[11px] font-bold px-2.5 py-1 rounded-full shadow-md border border-amber-400/40 flex items-center gap-1 z-10">
+      <span>📌</span>
+      <span id="lblFloatingWidgetBtn">الودجت</span>
+    </button>
+
+    <!-- ======================================================================= -->
+    <!-- MODAL 1: ADD NEW NOTE TYPE SELECTOR (Text Note vs Checklist)            -->
+    <!-- ======================================================================= -->
+    <div id="modalAddType" class="hidden absolute inset-0 bg-black/50 z-40 flex items-center justify-center p-4">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-xs overflow-hidden animate-pop border border-slate-200">
+        <div class="bg-slate-800 text-white px-4 py-2.5 flex items-center justify-between">
+          <h3 class="text-sm font-bold" id="lblModalAddTitle">إضافة ملاحظة (Add Note)</h3>
+          <button type="button" id="btnCloseAddTypeModal" class="text-slate-300 hover:text-white text-lg leading-none">×</button>
+        </div>
+        <div class="p-3 space-y-2">
+          <button type="button" id="btnCreateTextNote" class="w-full flex items-center gap-3.5 p-3 rounded-lg border border-slate-200 hover:bg-amber-50 hover:border-amber-400 transition text-start">
+            <div class="w-10 h-10 rounded-lg bg-amber-100 border border-amber-400 flex items-center justify-center text-xl shrink-0">📝</div>
+            <div>
+              <div class="text-sm font-bold text-slate-800" id="lblAddTextOption">نص (Text Note)</div>
+              <div class="text-[11px] text-slate-500" id="lblAddTextSub">مفكرة نصية بأسطر دفتر كلاسيكية</div>
+            </div>
+          </button>
+
+          <button type="button" id="btnCreateChecklistNote" class="w-full flex items-center gap-3.5 p-3 rounded-lg border border-slate-200 hover:bg-teal-50 hover:border-teal-400 transition text-start">
+            <div class="w-10 h-10 rounded-lg bg-teal-100 border border-teal-400 flex items-center justify-center text-xl shrink-0">☑️</div>
+            <div>
+              <div class="text-sm font-bold text-slate-800" id="lblAddChecklistOption">قائمة مهام (Checklist)</div>
+              <div class="text-[11px] text-slate-500" id="lblAddChecklistSub">قائمة تسوق أو مهام قابلة للتأشير والترتيب</div>
+            </div>
+          </button>
+
+          <button type="button" id="btnCreateDrawingNote" class="w-full flex items-center gap-3.5 p-3 rounded-lg border border-slate-200 hover:bg-emerald-50 hover:border-emerald-400 transition text-start">
+            <div class="w-10 h-10 rounded-lg bg-emerald-100 border border-emerald-400 flex items-center justify-center text-xl shrink-0">🎨</div>
+            <div>
+              <div class="text-sm font-bold text-slate-800" id="lblAddDrawingOption">رسم وكتابة يدوية (Handwriting & Drawing)</div>
+              <div class="text-[11px] text-slate-500" id="lblAddDrawingSub">لوحة رسم حر بالإصبع/الفرشاة مع دلو تلوين وممحاة</div>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- MODAL 2: 3x3 COLOR FILTER & CATEGORY PICKER                             -->
+    <!-- ======================================================================= -->
+    <div id="modalColorFilter" class="hidden absolute inset-0 bg-black/50 z-40 flex items-center justify-center p-4">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-xs overflow-hidden animate-pop border border-slate-200">
+        <div class="bg-slate-800 text-white px-4 py-2.5 flex items-center justify-between">
+          <h3 class="text-sm font-bold" id="lblColorModalTitle">اختر اللون للتصفية (Color Filter)</h3>
+          <button type="button" id="btnCloseColorFilterModal" class="text-slate-300 hover:text-white text-lg leading-none">×</button>
+        </div>
+        <div class="p-3 space-y-3 max-h-[75vh] overflow-y-auto">
+          <div id="colorFilterGrid3x3" class="grid grid-cols-3 gap-2"></div>
+
+          <!-- Unrestricted Custom Color Creator inside Color Modal -->
+          <div class="bg-slate-50 border border-slate-200 rounded-lg p-2.5 space-y-2">
+            <div class="text-xs font-bold text-slate-800 flex items-center justify-between">
+              <span>🌈 أضف أي لون مخصص تريده:</span>
+              <span id="modalCustomHexPreview" class="font-mono text-[11px] text-slate-600">#06B6D4</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="color" id="inputModalFreeColor" value="#06b6d4" title="اختر أي لون حر" class="w-10 h-8 rounded cursor-pointer border border-slate-300 bg-white p-0.5 shrink-0" />
+              <input type="text" id="inputModalFreeColorName" placeholder="اسم اللون (اختياري)..." class="flex-1 bg-white border border-slate-300 rounded px-2 py-1 text-xs text-slate-800" />
+              <button type="button" id="btnModalAddCustomColor" class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-2.5 py-1.5 rounded shadow-sm shrink-0">
+                + إضافة
+              </button>
+            </div>
+          </div>
+
+          <button type="button" id="btnShowAllColors" class="w-full py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs border border-slate-300">
+            عرض جميع الألوان (الكل)
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- MODAL 3: SORT ORDER SELECTOR                                            -->
+    <!-- ======================================================================= -->
+    <div id="modalSortOrder" class="hidden absolute inset-0 bg-black/50 z-40 flex items-center justify-center p-4">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-xs overflow-hidden animate-pop border border-slate-200">
+        <div class="bg-slate-800 text-white px-4 py-2.5 flex items-center justify-between">
+          <h3 class="text-sm font-bold" id="lblSortModalTitle">فرز الملاحظات حسب (Sort by)</h3>
+          <button type="button" id="btnCloseSortModal" class="text-slate-300 hover:text-white text-lg leading-none">×</button>
+        </div>
+        <div class="p-2 divide-y divide-slate-100 text-xs font-semibold text-slate-800" id="sortOptionsList">
+          <button type="button" data-sort-val="color" class="w-full px-3 py-2.5 text-start hover:bg-slate-100 flex items-center justify-between">
+            <span>🎨 فرز حسب اللون (Sort by color)</span>
+            <span class="sort-check text-teal-600">✓</span>
+          </button>
+          <button type="button" data-sort-val="modified" class="w-full px-3 py-2.5 text-start hover:bg-slate-100 flex items-center justify-between">
+            <span>🕒 تاريخ التعديل (Modified time)</span>
+            <span class="sort-check hidden text-teal-600">✓</span>
+          </button>
+          <button type="button" data-sort-val="created" class="w-full px-3 py-2.5 text-start hover:bg-slate-100 flex items-center justify-between">
+            <span>📅 تاريخ الإنشاء (Created time)</span>
+            <span class="sort-check hidden text-teal-600">✓</span>
+          </button>
+          <button type="button" data-sort-val="alpha" class="w-full px-3 py-2.5 text-start hover:bg-slate-100 flex items-center justify-between">
+            <span>🔤 أبجدياً أ-ي (Alphabetically A-Z)</span>
+            <span class="sort-check hidden text-teal-600">✓</span>
+          </button>
+          <button type="button" data-sort-val="reminder" class="w-full px-3 py-2.5 text-start hover:bg-slate-100 flex items-center justify-between">
+            <span>⏰ وقت التذكير (Reminder time)</span>
+            <span class="sort-check hidden text-teal-600">✓</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- MODAL 4: MASTER PASSWORD PIN PROMPT                                     -->
+    <!-- ======================================================================= -->
+    <div id="modalPinPrompt" class="hidden absolute inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-xs overflow-hidden animate-pop border border-slate-200">
+        <div class="bg-slate-900 text-white px-4 py-2.5 flex items-center justify-between">
+          <h3 class="text-sm font-bold flex items-center gap-1.5">
+            <span>🔒</span>
+            <span id="lblPinModalTitle">إدخال كلمة المرور الرئيسية</span>
+          </h3>
+          <button type="button" id="btnCancelPinPrompt" class="text-slate-300 hover:text-white text-lg leading-none">×</button>
+        </div>
+        <div class="p-4 space-y-3">
+          <p class="text-xs text-slate-600" id="lblPinModalHint">هذه الملاحظة محمية بكلمة مرور. (الرمز الافتراضي للتجربة: <code class="font-bold text-slate-900">1234</code>)</p>
+          <input type="password" id="inputVerifyPin" placeholder="أدخل رمز PIN..." class="w-full bg-slate-100 border border-slate-300 rounded-lg px-3 py-2 text-center font-mono text-base tracking-widest focus:outline-none focus:ring-2 focus:ring-teal-500" />
+          <p id="pinErrorMsg" class="hidden text-xs text-red-600 font-semibold text-center">رمز PIN غير صحيح! جرب 1234</p>
+          <div class="flex items-center gap-2 pt-1">
+            <button type="button" id="btnConfirmPinPrompt" class="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs py-2 rounded-lg shadow">
+              تأكيد الفتح
+            </button>
+            <button type="button" id="btnClosePinPrompt2" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-lg">
+              إلغاء
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- FULL-SCREEN NOTE & CHECKLIST EDITOR (Matches Screenshots 3 & 4)         -->
+    <!-- ======================================================================= -->
+    <div id="noteEditorOverlay" class="hidden absolute inset-0 z-30 flex flex-col bg-[#fffde7] transition-colors duration-150">
+      <!-- Editor Top Bar (Dynamically tinted with Note's Header Color) -->
+      <div id="editorHeaderBar" class="px-2.5 py-2 flex items-center gap-1.5 text-white shadow-md shrink-0 bg-[#fbc02d]">
+        <button type="button" id="btnEditorSaveBack" title="حفظ ورجوع" class="p-1.5 rounded hover:bg-black/15 font-bold flex items-center gap-1 text-sm shrink-0">
+          <span>✓</span>
+        </button>
+
+        <!-- Note Title Input -->
+        <input type="text" id="editorTitleInput" placeholder="عنوان الملاحظة..." class="flex-1 bg-white/90 text-slate-900 placeholder-slate-400 font-bold text-sm px-2.5 py-1.5 rounded border border-black/10 focus:outline-none" />
+
+        <!-- Color Swatch & Free Picker Toggle Button inside Editor -->
+        <button type="button" id="btnEditorColorSwatch" title="فتح / إغلاق أداة الألوان الحرة" class="px-2 h-7 rounded border-2 border-white shadow-sm shrink-0 flex items-center gap-1 text-xs font-bold text-white">
+          <span>🎨</span>
+          <span class="hidden xs:inline">الألوان</span>
+        </button>
+
+        <!-- Direct Native Color Input right in the Header Bar for 1-click free color selection -->
+        <label title="اختر أي لون حر مباشرة" class="w-7 h-7 rounded border-2 border-white shadow-sm shrink-0 flex items-center justify-center cursor-pointer overflow-hidden relative" style="background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red);">
+          <input type="color" id="inputHeaderDirectColor" value="#fbc02d" class="opacity-0 absolute inset-0 w-full h-full cursor-pointer" />
+        </label>
+
+        <!-- Mark Note Done / Check Toggle (✓) -->
+        <button type="button" id="btnEditorToggleDone" title="تأشير كمنجز (شطب العنوان)" class="p-1.5 rounded hover:bg-black/15 text-sm font-bold shrink-0">
+          ☑️
+        </button>
+
+        <!-- Lock / Unlock Toggle (🔒) -->
+        <button type="button" id="btnEditorToggleLock" title="قفل / إلغاء قفل الملاحظة" class="p-1.5 rounded hover:bg-black/15 text-sm shrink-0">
+          🔓
+        </button>
+
+        <!-- Pin to Widget Toggle (📌) -->
+        <button type="button" id="btnEditorToggleWidget" title="تثبيت في ودجت الشاشة الرئيسية" class="p-1.5 rounded hover:bg-black/15 text-sm shrink-0">
+          📌
+        </button>
+
+        <!-- Delete to Trash (🗑️) -->
+        <button type="button" id="btnEditorDeleteNote" title="نقل إلى سلة المحذوفات" class="p-1.5 rounded hover:bg-black/15 text-sm shrink-0">
+          🗑️
+        </button>
+      </div>
+
+      <!-- Editor Full Color Picker Tool & Swatches Strip (Visible by default, toggleable via 🎨) -->
+      <div id="editorColorPickerStrip" class="bg-white/95 border-b border-slate-300 p-2.5 shadow-md shrink-0 space-y-2">
+        <!-- Row 1: Unrestricted Color Wheel + Rainbow Hue Slider + Paper Softness + Hex Input -->
+        <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-100/90 p-2 rounded-lg border border-slate-200">
+          <div class="flex items-center gap-2">
+            <label class="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 rounded border border-slate-300 shadow-sm hover:border-teal-500">
+              <input type="color" id="inputEditorFreeColor" value="#fdd835" class="w-6 h-6 rounded cursor-pointer border-0 bg-transparent p-0" />
+              <span class="text-[11px] font-bold text-slate-800">🌈 اختر أي لون</span>
+            </label>
+            <input type="text" id="inputEditorHexCode" value="#FDD835" maxlength="7" placeholder="#RRGGBB" class="w-20 bg-white border border-slate-300 rounded px-2 py-1 text-[11px] font-mono font-bold text-slate-800 text-center uppercase" />
+          </div>
+
+          <!-- Rainbow Spectrum Slider -->
+          <div class="flex items-center gap-1.5 flex-1 min-w-[130px]">
+            <span class="text-[10px] font-semibold text-slate-600 shrink-0">الطيف:</span>
+            <input type="range" id="inputEditorHueSlider" min="0" max="360" value="50"
+                   style="background: linear-gradient(to right, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%);"
+                   class="w-full h-2.5 rounded-lg appearance-none cursor-pointer border border-black/15" />
+          </div>
+
+          <!-- Paper Background Softness Tint Slider -->
+          <div class="flex items-center gap-1.5">
+            <span class="text-[10px] font-semibold text-slate-600 shrink-0" title="درجة تفتيح لون ورقة الكتابة">تفتيح الورقة:</span>
+            <input type="range" id="inputEditorTintSlider" min="45" max="95" value="84" class="w-16 h-2 bg-slate-300 rounded-lg cursor-pointer" />
+            <button type="button" id="btnSaveCustomColorToPalette" title="حفظ هذا اللون في لوحة ألوان التطبيق" class="bg-teal-600 hover:bg-teal-700 text-white text-[11px] font-bold px-2 py-1 rounded shadow-sm shrink-0">
+              + حفظ باللوحة
+            </button>
+          </div>
+        </div>
+
+        <!-- Row 2: Quick Preset & Saved Custom Swatches -->
+        <div class="flex items-center gap-1.5 overflow-x-auto pb-0.5" id="editorColorSwatchesRow"></div>
+      </div>
+
+      <!-- Editor Metadata & Formatting Sub-Bar (Exact match to Screenshot 3 & 4: "Editing | 1/28/16 5:01 PM") -->
+      <div id="editorMetaBar" class="px-3 py-1 bg-black/5 border-b border-black/10 flex items-center justify-between text-[11px] text-slate-700 shrink-0 flex-wrap gap-1">
+        <div class="flex items-center gap-2">
+          <span id="editorModeStatusLabel" class="font-semibold">تحرير (Editing)</span>
+          <span>•</span>
+          <button type="button" id="btnToggleLinedPaper" class="underline hover:text-black font-medium">أسطر الدفتر: مفعلة</button>
+          <span>•</span>
+          <button type="button" id="btnCycleFontSize" class="underline hover:text-black font-medium">الخط: متوسط</button>
+          <span>•</span>
+          <button type="button" id="btnConvertNoteType" class="underline hover:text-teal-800 font-semibold text-teal-900">تحويل النوع ⇄</button>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="editorCharWordCount" class="text-[10px] opacity-80">0 حرف</span>
+          <span id="editorTimestampLabel" class="font-mono text-[10px]">10/29/26 11:43 AM</span>
+        </div>
+      </div>
+
+      <!-- Folder, Reminder, Image Attachment, Drawing & Voice Quick Strip inside Editor -->
+      <div class="px-2.5 py-1.5 bg-black/[0.04] border-b border-black/10 flex items-center justify-between text-xs shrink-0 flex-wrap gap-1.5">
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <!-- Folder Selector (KiteTech Folders) -->
+          <span title="المجلد">📁</span>
+          <select id="editorFolderSelect" class="bg-white/90 border border-slate-300 rounded px-1.5 py-0.5 text-[11px] font-semibold text-slate-800"></select>
+
+          <!-- Reminder Date -->
+          <span>⏰</span>
+          <input type="date" id="editorReminderDate" class="bg-white/90 border border-slate-300 rounded px-1.5 py-0.5 text-[11px] text-slate-800" />
+          <button type="button" id="btnClearReminderDate" class="text-[10px] text-red-600 hover:underline font-semibold">مسح التذكير</button>
+        </div>
+
+        <!-- KiteTech Media & Undo/Redo Actions -->
+        <div class="flex items-center gap-1 flex-wrap">
+          <button type="button" id="btnEditorUndo" title="تراجع (Undo)" class="bg-white/90 hover:bg-white border border-slate-300 text-slate-800 px-1.5 py-0.5 rounded text-[11px] font-bold">↶</button>
+          <button type="button" id="btnEditorRedo" title="إعادة (Redo)" class="bg-white/90 hover:bg-white border border-slate-300 text-slate-800 px-1.5 py-0.5 rounded text-[11px] font-bold">↷</button>
+
+          <!-- Attach Picture (KiteTech 🖼️) -->
+          <label title="إرفاق صورة داخل الملاحظة" class="bg-white/90 hover:bg-white border border-slate-300 text-slate-800 px-1.5 py-0.5 rounded text-[11px] font-semibold cursor-pointer flex items-center gap-0.5">
+            <span>🖼️</span>
+            <span class="hidden sm:inline">صورة</span>
+            <input type="file" id="inputEditorAttachImage" accept="image/*" class="hidden" />
+          </label>
+
+          <!-- Open Drawing Canvas (KiteTech 🎨) -->
+          <button type="button" id="btnEditorSwitchToDraw" title="فتح لوحة الرسم والكتابة اليدوية" class="bg-emerald-100 hover:bg-emerald-200 border border-emerald-400 text-emerald-900 px-1.5 py-0.5 rounded text-[11px] font-bold">
+            🎨 رسم
+          </button>
+
+          <!-- Speech to Text Dictation (KiteTech 🎙️) -->
+          <button type="button" id="btnEditorVoiceDictate" title="إملاء صوتي باللغة العربية أو الإنجليزية (Speech-to-Text)" class="bg-white/90 hover:bg-white border border-slate-300 text-slate-800 px-1.5 py-0.5 rounded text-[11px] font-semibold">
+            🎙️
+          </button>
+
+          <button type="button" id="btnEditorCopyNote" class="bg-white/90 hover:bg-white border border-slate-300 text-slate-800 px-1.5 py-0.5 rounded text-[11px] font-semibold">
+            📋 نسخ
+          </button>
+          <button type="button" id="btnEditorArchiveNote" class="bg-white/90 hover:bg-white border border-slate-300 text-slate-800 px-1.5 py-0.5 rounded text-[11px] font-semibold">
+            📥 أرشفة
+          </button>
+        </div>
+      </div>
+
+      <!-- EDITOR BODY MODE A: TEXT NOTE (Lined Paper Rich Text + Textarea + Attachments + KiteTech Bottom Formatting Bar) -->
+      <div id="editorTextModeContainer" class="flex-1 flex flex-col overflow-hidden relative">
+        <!-- Rich Text Contenteditable Lined Paper Surface (Supports Bold, Italic, Underline, Strike, Highlight, Font Color) -->
+        <div id="editorRichEditable" contenteditable="true" data-placeholder="اكتب ملاحظاتك هنا... (حدد أي نص لتنسيقه بالخط العريض B أو المائل I أو التظليل الملون A بالأسفل)"
+             class="rich-editor-area note-textarea lined-paper flex-1 w-full px-3.5 pb-9 text-base text-slate-900 overflow-y-auto whitespace-pre-wrap break-words"></div>
+
+        <!-- Synced Plain Textarea (Kept for backward compatibility & raw text mode) -->
+        <textarea id="editorTextarea" placeholder="اكتب ملاحظاتك هنا... (يتم الحفظ تلقائياً)" class="hidden note-textarea lined-paper flex-1 w-full px-3.5 pb-9 text-base text-slate-900 overflow-y-auto"></textarea>
+
+        <!-- Attached Pictures & Drawings Preview Strip inside Note -->
+        <div id="editorAttachmentsStrip" class="hidden px-3 py-2 bg-white/80 border-t border-black/10 flex items-center gap-2 overflow-x-auto shrink-0"></div>
+
+        <!-- Auto-detected clickable links footer -->
+        <div id="editorDetectedLinksBar" class="hidden px-3 py-1 bg-white/85 border-t border-black/10 text-xs flex items-center gap-2 flex-wrap shrink-0"></div>
+
+        <!-- KiteTech Rich Text Formatting Bottom Toolbar (Exact match to Screenshot 1 Middle Phone: B I U S [A] 🎨 ⚙️) -->
+        <div id="kiteTechRichToolbar" class="bg-[#b8f597] border-t border-emerald-400 px-2.5 py-1.5 flex items-center justify-between gap-1 text-slate-900 shrink-0 shadow-inner">
+          <div class="flex items-center gap-1">
+            <button type="button" id="btnFmtBold" title="خط عريض (Bold)" class="w-7 h-7 rounded hover:bg-black/10 font-serif font-black text-sm flex items-center justify-center">B</button>
+            <button type="button" id="btnFmtItalic" title="خط مائل (Italic)" class="w-7 h-7 rounded hover:bg-black/10 font-serif italic font-bold text-sm flex items-center justify-center">I</button>
+            <button type="button" id="btnFmtUnderline" title="تسطير سفلي (Underline)" class="w-7 h-7 rounded hover:bg-black/10 font-serif underline font-bold text-sm flex items-center justify-center">U</button>
+            <button type="button" id="btnFmtStrike" title="يتوسطه خط (Strikethrough)" class="w-7 h-7 rounded hover:bg-black/10 font-serif line-through font-bold text-sm flex items-center justify-center">S</button>
+
+            <!-- Highlight Text Button [A] + Highlight Color Picker -->
+            <div class="flex items-center bg-slate-900 text-yellow-300 rounded px-1.5 h-6 gap-1 shadow-sm">
+              <button type="button" id="btnFmtHighlight" title="تظليل النص المحدد (Highlight)" class="font-bold text-xs">A</button>
+              <input type="color" id="inputFmtHighlightColor" value="#ffff00" title="لون التظليل (Highlight Color)" class="w-3.5 h-3.5 cursor-pointer border-0 bg-transparent p-0" />
+            </div>
+
+            <!-- Font Text Color Picker (🎨) -->
+            <label title="تغيير لون الخط للنص المحدد (Text Color)" class="w-7 h-7 rounded hover:bg-black/10 flex items-center justify-center cursor-pointer relative">
+              <span class="text-sm">🎨</span>
+              <input type="color" id="inputFmtTextColor" value="#d32f2f" class="opacity-0 absolute inset-0 w-full h-full cursor-pointer" />
+            </label>
+          </div>
+
+          <!-- Font Family Selector (⚙️ Different Fonts) -->
+          <div class="flex items-center gap-1">
+            <select id="selectFmtFontFamily" title="نوع الخط (Font Style)" class="bg-white/85 border border-emerald-500 rounded px-1.5 py-0.5 text-[11px] font-semibold text-slate-800">
+              <option value="'Cairo', sans-serif">خط القاهرة (Cairo)</option>
+              <option value="'Inter', sans-serif">خط عصري (Sans)</option>
+              <option value="Georgia, serif">خط كلاسيكي (Serif)</option>
+              <option value="monospace">خط برمجي (Mono)</option>
+              <option value="cursive">خط يدوي (Hand)</option>
+            </select>
+            <button type="button" id="btnFmtClear" title="إزالة التنسيقات" class="px-1.5 py-0.5 rounded bg-white/70 hover:bg-white text-[10px] font-bold text-slate-700">مسح التنسيق</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- EDITOR BODY MODE C: HANDWRITING & FINGER DRAWING STUDIO (Exact match to KiteTech Screenshot 2 Phone 3) -->
+      <div id="editorDrawingModeContainer" class="hidden flex-1 flex flex-col overflow-hidden bg-white">
+        <div class="px-3 py-1 bg-slate-100 border-b border-slate-300 flex items-center justify-between text-[11px] text-slate-700 shrink-0">
+          <div class="flex items-center gap-1.5">
+            <span class="font-bold text-emerald-800">🎨 لوحة الرسم والكتابة اليدوية</span>
+            <button type="button" id="btnDrawDemoLandscape" class="bg-sky-100 hover:bg-sky-200 text-sky-900 border border-sky-300 px-2 py-0.5 rounded font-semibold">
+              🏞️ رسمة الطبيعة التجريبية
+            </button>
+          </div>
+          <div class="flex items-center gap-1">
+            <button type="button" id="btnDrawUndo" class="px-2 py-0.5 bg-white border border-slate-300 rounded font-bold hover:bg-slate-50">↶ تراجع</button>
+            <button type="button" id="btnDrawRedo" class="px-2 py-0.5 bg-white border border-slate-300 rounded font-bold hover:bg-slate-50">↷ إعادة</button>
+            <button type="button" id="btnDrawClear" class="px-2 py-0.5 bg-red-50 text-red-700 border border-red-200 rounded font-bold hover:bg-red-100">مسح</button>
+            <button type="button" id="btnDrawBackToText" class="px-2 py-0.5 bg-teal-600 text-white rounded font-bold">حفظ بالدفتر ✓</button>
+          </div>
+        </div>
+
+        <!-- Interactive HTML5 Drawing Canvas -->
+        <div class="flex-1 relative overflow-hidden flex items-center justify-center bg-slate-200">
+          <canvas id="drawingCanvas" width="520" height="520" class="bg-white shadow-inner w-full h-full object-contain cursor-crosshair touch-none"></canvas>
+        </div>
+
+        <!-- KiteTech Bottom Drawing Toolbar (Exact match to Screenshot 2 Phone 3: [■ Color] [〰️ Size] [🧹 Eraser] [✏️ Pen] [🪣 Fill]) -->
+        <div class="bg-[#b8f597] border-t border-emerald-400 px-3 py-2 flex items-center justify-between gap-2 shrink-0">
+          <div class="flex items-center gap-2">
+            <label title="لون الفرشاة أو التعبئة" class="flex items-center gap-1 cursor-pointer bg-white px-1.5 py-0.5 rounded border border-slate-400 shadow-sm">
+              <input type="color" id="inputDrawBrushColor" value="#0048ff" class="w-5 h-5 cursor-pointer border-0 bg-transparent p-0" />
+              <span class="text-[10px] font-bold text-slate-800">اللون</span>
+            </label>
+            <div class="flex items-center gap-1">
+              <span class="text-xs" title="سُمك الخط">〰️</span>
+              <input type="range" id="inputDrawStrokeWidth" min="2" max="32" value="5" class="w-20 h-2 bg-white rounded-lg cursor-pointer" />
+            </div>
+          </div>
+
+          <div class="flex items-center gap-1.5">
+            <button type="button" id="btnDrawToolPen" class="px-2.5 py-1 rounded text-xs font-bold bg-slate-900 text-white shadow">✏️ قلم</button>
+            <button type="button" id="btnDrawToolFill" class="px-2.5 py-1 rounded text-xs font-bold bg-white/80 text-slate-800 hover:bg-white">🪣 دلو تلوين</button>
+            <button type="button" id="btnDrawToolEraser" class="px-2.5 py-1 rounded text-xs font-bold bg-white/80 text-slate-800 hover:bg-white">🧹 ممحاة</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- EDITOR BODY MODE B: CHECKLIST (Interactive Lined Rows matching Screenshot 4) -->
+      <div id="editorChecklistModeContainer" class="hidden flex-1 flex flex-col overflow-hidden">
+        <!-- Add New Checklist Item Input Row -->
+        <div class="p-2.5 bg-white/60 border-b border-black/10 flex items-center gap-2 shrink-0">
+          <input type="text" id="inputNewChecklistItem" placeholder="+ أضف عنصراً جديداً إلى القائمة ثم اضغط Enter..." class="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-600" />
+          <button type="button" id="btnAddChecklistItem" class="bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs px-3 py-2 rounded-lg shadow-sm shrink-0">
+            + إضافة
+          </button>
+        </div>
+
+        <!-- Bulk Checklist Actions Bar -->
+        <div class="px-3 py-1 bg-black/5 border-b border-black/10 flex items-center justify-between text-[11px] text-slate-700 shrink-0">
+          <span id="checklistProgressLabel" class="font-bold">منجز: 0 / 0</span>
+          <div class="flex items-center gap-2">
+            <button type="button" id="btnSortCheckedBottom" class="hover:underline font-semibold text-teal-900">⬇️ المنجز للأسفل</button>
+            <span>•</span>
+            <button type="button" id="btnUncheckAllItems" class="hover:underline font-semibold">إلغاء تحديد الكل</button>
+            <span>•</span>
+            <button type="button" id="btnDeleteCheckedItems" class="hover:underline font-semibold text-red-700">حذف المنجز</button>
+          </div>
+        </div>
+
+        <!-- Checklist Items Scrollable List (Lined Paper rows matching Screenshot 4) -->
+        <div id="editorChecklistItemsList" class="lined-paper flex-1 overflow-y-auto"></div>
+      </div>
+    </div>
+
+    <!-- In-App Toast Notification Banner -->
+    <div id="toastBanner" class="hidden absolute bottom-16 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs font-semibold px-4 py-2 rounded-full shadow-xl border border-slate-700 z-50 transition-all">
+      تم حفظ الملاحظة
+    </div>
+
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. COLORNOTE 9-COLOR PALETTE SPECIFICATION (REA Extracted Palette)
+    // =========================================================================
+    const COLOR_PALETTES = [
+      { index: 0, id: 'red',    nameAr: 'أحمر',    nameEn: 'Red',    stripe: '#e53935', body: '#ffebee', header: '#d32f2f', border: '#ef9a9a', defaultLabelAr: 'عاجل / هام',     defaultLabelEn: 'Urgent' },
+      { index: 1, id: 'orange', nameAr: 'برتقالي', nameEn: 'Orange', stripe: '#fb8c00', body: '#fff3e0', header: '#f57c00', border: '#ffcc80', defaultLabelAr: 'تذكيرات ومواعيد', defaultLabelEn: 'Reminders' },
+      { index: 2, id: 'yellow', nameAr: 'أصفر',    nameEn: 'Yellow', stripe: '#fdd835', body: '#fffde7', header: '#fbc02d', border: '#fff59d', defaultLabelAr: 'قوائم تسوق',      defaultLabelEn: 'Shopping' },
+      { index: 3, id: 'green',  nameAr: 'أخضر',    nameEn: 'Green',  stripe: '#43a047', body: '#e8f5e9', header: '#388e3c', border: '#a5d6a7', defaultLabelAr: 'شخصي وكتب',       defaultLabelEn: 'Personal' },
+      { index: 4, id: 'blue',   nameAr: 'أزرق',    nameEn: 'Blue',   stripe: '#1e88e5', body: '#e3f2fd', header: '#1976d2', border: '#90caf9', defaultLabelAr: 'العمل والمشاريع', defaultLabelEn: 'Work' },
+      { index: 5, id: 'purple', nameAr: 'بنفسجي',  nameEn: 'Purple', stripe: '#8e24aa', body: '#f3e5f5', header: '#7b1fa2', border: '#ce93d8', defaultLabelAr: 'أفكار وإبداع',    defaultLabelEn: 'Ideas' },
+      { index: 6, id: 'black',  nameAr: 'أسود',    nameEn: 'Black',  stripe: '#263238', body: '#cfd8dc', header: '#37474f', border: '#90a4ae', defaultLabelAr: 'سري وخاص',        defaultLabelEn: 'Vault' },
+      { index: 7, id: 'grey',   nameAr: 'رمادي',   nameEn: 'Grey',   stripe: '#757575', body: '#f5f5f5', header: '#616161', border: '#e0e0e0', defaultLabelAr: 'مسودات عامة',     defaultLabelEn: 'Drafts' },
+      { index: 8, id: 'white',  nameAr: 'أبيض',    nameEn: 'White',  stripe: '#bdbdbd', body: '#ffffff', header: '#757575', border: '#e0e0e0', defaultLabelAr: 'ملاحظات سريعة',   defaultLabelEn: 'Quick Notes' }
+    ];
+
+    // =========================================================================
+    // 2. INITIAL DEMO NOTES (Replicating the Google Play Screenshot + Arabic/English)
+    // =========================================================================
+    function getInitialDemoNotes() {
+      const todayStr = '2026-10-29';
+      const tomorrowStr = '2026-10-30';
+      return [
+        {
+          id: 101,
+          folderId: 'important',
+          type: 'text',
+          title: "Don't forget — لا تنسَ",
+          content: "تأكيد حجز الطيران ومراجعة مستندات الاجتماع الصباحي.\n- إرسال التقرير المالي قبل الساعة 2 ظهراً\n- الاتصال بفريق التطوير لمراجعة واجهة التطبيق\nhttps://play.google.com/store/apps/details?id=com.socialnmobile.dictapps.notepad.color.note",
+          items: [],
+          colorIndex: 0, // Red/Pink (top row in screenshot)
+          createdDate: 1761727380000,
+          modifiedDate: 1761727380000,
+          displayTime: '11:43 AM',
+          reminderDate: todayStr,
+          checked: false,
+          locked: false,
+          status: 'active',
+          widgetPinned: true
+        },
+        {
+          id: 102,
+          type: 'text',
+          title: "Business plan — خطة العمل 🔒",
+          content: "خطة الإطلاق للربع القادم:\n1. تحليل المنافسين عبر منهجية REA\n2. إطلاق النسخة التجريبية لتطبيق الملاحظات الملونة\n3. ميزانية التسويق الرقمي: 15,000$\n4. أهداف المستخدمين النشطين: 50,000 مستخدم",
+          items: [],
+          colorIndex: 0, // Red/Pink with Lock icon (2nd row in screenshot)
+          createdDate: 1761727200000,
+          modifiedDate: 1761727200000,
+          displayTime: '11:40 AM',
+          reminderDate: '',
+          checked: false,
+          locked: true,
+          status: 'active',
+          widgetPinned: false
+        },
+        {
+          id: 103,
+          type: 'text',
+          title: "Reminder — تذكير المواعيد",
+          content: "موعد عيادة الأسنان يوم الخميس الساعة 5:00 مساءً.\nتجديد اشتراك الإنترنت الشهري قبل نهاية الأسبوع.",
+          items: [],
+          colorIndex: 1, // Orange (3rd row in screenshot)
+          createdDate: 1761554400000,
+          modifiedDate: 1761554400000,
+          displayTime: 'Oct 27',
+          reminderDate: tomorrowStr,
+          checked: false,
+          locked: false,
+          status: 'active',
+          widgetPinned: true
+        },
+        {
+          id: 104,
+          type: 'text',
+          title: "Contacts — جهات الاتصال",
+          content: "م. أحمد (مدير المشروع): +967-777-000-111\nد. سارة (استشارات تقنية): sara@example.com\nالدعم الفني: support@colornote.example.com",
+          items: [],
+          colorIndex: 1, // Orange with Checkmark (4th row in screenshot)
+          createdDate: 1761550000000,
+          modifiedDate: 1761550000000,
+          displayTime: 'Oct 27',
+          reminderDate: '',
+          checked: true,
+          locked: false,
+          status: 'active',
+          widgetPinned: false
+        },
+        {
+          id: 105,
+          folderId: 'todo_lists',
+          type: 'checklist',
+          title: "Shopping list — قائمة التسوق",
+          content: "",
+          items: [
+            { id: 'c1', text: 'Eggs — بيض طازج', checked: false },
+            { id: 'c2', text: 'Coke — مشروب غازي', checked: true },
+            { id: 'c3', text: 'Bread — خبز محمص', checked: false },
+            { id: 'c4', text: 'Milk — حليب كامل الدسم', checked: true },
+            { id: 'c5', text: 'Broccoli & Greens — خضروات طازجة', checked: false },
+            { id: 'c6', text: 'Cheese — جبن شيدر', checked: true }
+          ],
+          colorIndex: 2, // Yellow (5th row & Screenshot 4)
+          createdDate: 1761545000000,
+          modifiedDate: 1761545000000,
+          displayTime: 'Oct 27',
+          reminderDate: todayStr,
+          checked: false,
+          locked: false,
+          status: 'active',
+          widgetPinned: true
+        },
+        {
+          id: 106,
+          folderId: 'book_list',
+          type: 'checklist',
+          title: "Books — كتب للقراءة",
+          content: "",
+          items: [
+            { id: 'b1', text: 'Clean Architecture — Robert C. Martin', checked: true },
+            { id: 'b2', text: 'Reverse Engineering for Beginners', checked: true },
+            { id: 'b3', text: 'مقدمة ابن خلدون', checked: false }
+          ],
+          colorIndex: 3, // Green (6th row in screenshot)
+          createdDate: 1761540000000,
+          modifiedDate: 1761540000000,
+          displayTime: 'Oct 27',
+          reminderDate: '',
+          checked: true,
+          locked: false,
+          status: 'active',
+          widgetPinned: false
+        },
+        {
+          id: 107,
+          folderId: 'quotes',
+          type: 'text',
+          title: "ColorNote — تبسيط حياتك اليومية",
+          content: "ColorNote Simplify your life.\nIt's never been so easy to take notes.\n\nتطبيق ColorNote يمنحك تجربة تدوين ملاحظات سريعة وبسيطة عند كتابة المذكرات، البريد، الرسائل، قوائم التسوق وقوائم المهام اليومية.",
+          items: [],
+          colorIndex: 4, // Blue (Screenshot 3)
+          createdDate: 1761530000000,
+          modifiedDate: 1761530000000,
+          displayTime: 'Oct 26',
+          reminderDate: '2026-11-02',
+          checked: false,
+          locked: false,
+          status: 'active',
+          widgetPinned: true
+        },
+        {
+          id: 108,
+          type: 'text',
+          title: "ملاحظات مؤرشفة سابقة (Archive Demo)",
+          content: "هذه الملاحظة محفوظة في الأرشيف للرجوع إليها عند الحاجة دون ازدحام الشاشة الرئيسية.",
+          items: [],
+          colorIndex: 5, // Purple
+          folderId: 'quotes',
+          createdDate: 1761400000000,
+          modifiedDate: 1761400000000,
+          displayTime: 'Oct 20',
+          reminderDate: '',
+          checked: false,
+          locked: false,
+          status: 'archived',
+          widgetPinned: false
+        },
+        {
+          id: 109,
+          type: 'text',
+          title: "Many text formatting options — تنسيق النصوص ✍️",
+          content: "You can make the text bold, make it italic, underline the text, strikethrough the text or highlight the text.\nيمكنك جعل النص عريضاً أو مائلاً أو مسطراً أو مظللاً بأي لون عبر شريط التنسيق بالأسفل!",
+          richHtml: "You can make the text <b>bold</b>, make it <i>italic</i>, <u>underline</u> the text, <s>strikethrough</s> the text or <span style=\"background-color: #ffff00; padding: 0 3px; border-radius: 2px;\">highlight</span> the text.<br>يمكنك جعل النص <b>عريضاً (Bold)</b>، أو <i>مائلاً (Italic)</i>، أو <u>مسطراً</u>، أو <span style=\"background-color: #bbf7d0; padding: 0 4px;\">مظللاً بأي لون</span> أو <span style=\"color: #d32f2f; font-weight: bold;\">ملوناً</span>!",
+          items: [],
+          colorIndex: 3, // Green (KiteTech signature)
+          folderId: 'important',
+          createdDate: 1761729000000,
+          modifiedDate: 1761729000000,
+          displayTime: '09:00 AM',
+          reminderDate: todayStr,
+          checked: false,
+          locked: false,
+          status: 'active',
+          widgetPinned: true
+        },
+        {
+          id: 110,
+          type: 'drawing',
+          title: "Handwriting and drawing — رسم وكتابة يدوية 🎨",
+          content: "لوحة رسم حر وتلوين مدمجة (اضغط زر 🎨 رسم لتعديل الرسمة أو التلوين بالدلو والفرشاة).",
+          items: [],
+          colorIndex: 4, // Blue
+          folderId: 'travel',
+          hasDemoLandscape: true,
+          createdDate: 1761728500000,
+          modifiedDate: 1761728500000,
+          displayTime: '09:00 AM',
+          reminderDate: '',
+          checked: false,
+          locked: false,
+          status: 'active',
+          widgetPinned: true
+        }
+      ];
+    }
+
+    function getDefaultFolders() {
+      return [
+        { id: 'book_list', nameAr: 'قائمة الكتب (Book list)', nameEn: 'Book list' },
+        { id: 'important', nameAr: 'هام (Important)',         nameEn: 'Important' },
+        { id: 'quotes',    nameAr: 'اقتباسات (Quotes)',       nameEn: 'Quotes' },
+        { id: 'todo_lists',nameAr: 'قوائم المهام (To do lists)', nameEn: 'To do lists' },
+        { id: 'travel',    nameAr: 'السفر (Travel)',          nameEn: 'Travel' }
+      ];
+    }
+
+    // =========================================================================
+    // 3. APPLICATION STATE & STORAGE (Safe localStorage wrapper)
+    // =========================================================================
+    const STORAGE_KEY = 'colornote_kitetech_merged_v2';
+
+    let state = {
+      lang: 'ar',              // 'ar' | 'en'
+      darkMode: false,         // false | true
+      appThemeStyle: 'kitetech_green', // 'classic' | 'kitetech_green' | 'kitetech_blue' | 'amoled_black'
+      fullWidthDesktop: false, // false (phone frame) | true (wide container)
+      currentTab: 'notes',     // 'notes' | 'calendar' | 'search' | 'widgets' | 'more'
+      moreSubTab: 'archive',   // 'archive' | 'trash' | 'settings' | 'rea'
+      viewMode: 'list',        // 'list' | 'grid' | 'details' | 'largeGrid'
+      sortBy: 'color',         // 'color' | 'modified' | 'created' | 'alpha' | 'reminder'
+      colorFilter: null,       // null or 0..8
+      selectedFolderId: 'all', // 'all' or folder.id
+      foldersDirectoryOpen: false,
+      folders: [],
+      searchQuery: '',
+      searchTypeFilter: 'all', // 'all' | 'text' | 'checklist' | 'locked' | 'reminder' | 'done'
+      masterPin: '1234',
+      unlockedNoteIds: {},     // session unlocked note ids
+      pendingPinNoteId: null,
+      pendingPinAction: null,  // 'open' | 'toggleLock'
+      calendarYear: 2026,
+      calendarMonth: 9,        // 0-indexed (9 = October)
+      selectedCalendarDate: '2026-10-29',
+      editingNoteId: null,
+      editorLinedPaper: true,
+      editorFontSize: 'base',  // 'sm' | 'base' | 'lg' | 'xl'
+      editorColorStripOpen: true,
+      colorLabels: {},
+      customPalettes: [],
+      notes: []
+    };
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && Array.isArray(parsed.notes) && parsed.notes.length > 0) {
+            state = Object.assign({}, state, parsed, { unlockedNoteIds: {} });
+            if (!state.folders || !state.folders.length) state.folders = getDefaultFolders();
+            return;
+          }
+        }
+      } catch (e) {}
+      state.notes = getInitialDemoNotes();
+      state.folders = getDefaultFolders();
+      COLOR_PALETTES.forEach(p => {
+        state.colorLabels[p.index] = state.lang === 'ar' ? p.defaultLabelAr : p.defaultLabelEn;
+      });
+      saveState();
+    }
+
+    function saveState() {
+      try {
+        const toSave = Object.assign({}, state, { unlockedNoteIds: {} });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+      } catch (e) {}
+    }
+
+    function showToast(msg) {
+      const banner = document.getElementById('toastBanner');
+      if (!banner) return;
+      banner.textContent = msg;
+      banner.classList.remove('hidden');
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(() => {
+        banner.classList.add('hidden');
+      }, 2200);
+    }
+
+    // =========================================================================
+    // 4. BILINGUAL TRANSLATIONS & HELPERS
+    // =========================================================================
+    const I18N = {
+      ar: {
+        appSub: 'المفكرة الملونة الذكية',
+        navNotes: 'الملاحظات',
+        navCalendar: 'التقويم',
+        navNew: 'جديد',
+        navSearch: 'البحث',
+        navMore: 'المزيد',
+        widgetBtn: 'الودجت',
+        viewModes: { list: 'قائمة', grid: 'شبكة', details: 'تفاصيل', largeGrid: 'بطاقات' },
+        sortNames: {
+          color: 'فرز حسب اللون',
+          modified: 'فرز حسب تاريخ التعديل',
+          created: 'فرز حسب تاريخ الإنشاء',
+          alpha: 'فرز أبجدي (أ-ي)',
+          reminder: 'فرز حسب التذكير'
+        },
+        lockedContentPlaceholder: '🔒 محتوى محمي بكلمة المرور الرئيسية',
+        emptyNotes: 'لا توجد ملاحظات مطابقة حالياً. اضغط (+) لإضافة ملاحظة جديدة!'
+      },
+      en: {
+        appSub: 'Notepad Notes & Checklists',
+        navNotes: 'Notes',
+        navCalendar: 'Calendar',
+        navNew: 'Add',
+        navSearch: 'Search',
+        navMore: 'More',
+        widgetBtn: 'Widgets',
+        viewModes: { list: 'List', grid: 'Grid', details: 'Details', largeGrid: 'Large' },
+        sortNames: {
+          color: 'Sort by color',
+          modified: 'Sort by modified time',
+          created: 'Sort by created time',
+          alpha: 'Sort alphabetically',
+          reminder: 'Sort by reminder'
+        },
+        lockedContentPlaceholder: '🔒 Protected by Master Password',
+        emptyNotes: 'No matching notes found. Tap (+) to create a new note!'
+      }
+    };
+
+    function normalizeHex(hex) {
+      const clean = String(hex || '').trim();
+      if (/^#[0-9a-fA-F]{6}$/.test(clean)) return clean.toLowerCase();
+      if (/^[0-9a-fA-F]{6}$/.test(clean)) return '#' + clean.toLowerCase();
+      return '#fdd835';
+    }
+
+    function hexToRgb(hex) {
+      const h = normalizeHex(hex).slice(1);
+      return {
+        r: parseInt(h.slice(0, 2), 16),
+        g: parseInt(h.slice(2, 4), 16),
+        b: parseInt(h.slice(4, 6), 16)
+      };
+    }
+
+    function rgbToHex(r, g, b) {
+      const clamp = (n) => Math.max(0, Math.min(255, Math.round(n)));
+      return '#' + [clamp(r), clamp(g), clamp(b)].map(x => x.toString(16).padStart(2, '0')).join('');
+    }
+
+    function mixHexWithWhite(hex, whiteRatio = 0.84) {
+      const { r, g, b } = hexToRgb(hex);
+      const ratio = Math.max(0, Math.min(0.97, whiteRatio));
+      return rgbToHex(
+        r * (1 - ratio) + 255 * ratio,
+        g * (1 - ratio) + 255 * ratio,
+        b * (1 - ratio) + 255 * ratio
+      );
+    }
+
+    function darkenHex(hex, factor = 0.14) {
+      const { r, g, b } = hexToRgb(hex);
+      return rgbToHex(r * (1 - factor), g * (1 - factor), b * (1 - factor));
+    }
+
+    function hslToHex(h, s = 85, l = 52) {
+      s /= 100;
+      l /= 100;
+      const k = n => (n + h / 30) % 12;
+      const a = s * Math.min(l, 1 - l);
+      const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+      return rgbToHex(255 * f(0), 255 * f(8), 255 * f(4));
+    }
+
+    function buildPaletteFromHex(hex, tintPercent = 84, customName = '', index = 999) {
+      const cleanHex = normalizeHex(hex);
+      const ratio = Math.max(0.40, Math.min(0.96, Number(tintPercent || 84) / 100));
+      const label = customName || cleanHex.toUpperCase();
+      return {
+        index: index,
+        id: 'custom_' + cleanHex.slice(1),
+        nameAr: label,
+        nameEn: label,
+        stripe: cleanHex,
+        body: mixHexWithWhite(cleanHex, ratio),
+        header: darkenHex(cleanHex, 0.12),
+        border: mixHexWithWhite(cleanHex, 0.55),
+        defaultLabelAr: label,
+        defaultLabelEn: label
+      };
+    }
+
+    function getAllPalettes() {
+      return [...COLOR_PALETTES, ...(state.customPalettes || [])];
+    }
+
+    function getPalette(idxOrNote, optionalNote = null) {
+      const noteObj = (typeof idxOrNote === 'object' && idxOrNote !== null) ? idxOrNote : optionalNote;
+      if (noteObj && noteObj.customHex) {
+        return buildPaletteFromHex(noteObj.customHex, noteObj.customTint || 84, noteObj.customColorName || '', noteObj.colorIndex);
+      }
+      if (typeof idxOrNote === 'string' && idxOrNote.startsWith('#')) {
+        return buildPaletteFromHex(idxOrNote, 84);
+      }
+      const idx = (typeof idxOrNote === 'object' && idxOrNote !== null) ? idxOrNote.colorIndex : idxOrNote;
+      const all = getAllPalettes();
+      return all.find(p => p.index === idx) || COLOR_PALETTES[2];
+    }
+
+    function getColorLabel(idxOrNote) {
+      if (typeof idxOrNote === 'object' && idxOrNote !== null && idxOrNote.customHex) {
+        return idxOrNote.customColorName || idxOrNote.customHex.toUpperCase();
+      }
+      const idx = (typeof idxOrNote === 'object' && idxOrNote !== null) ? idxOrNote.colorIndex : idxOrNote;
+      const p = getPalette(idx);
+      if (state.colorLabels && state.colorLabels[idx]) return state.colorLabels[idx];
+      return state.lang === 'ar' ? p.defaultLabelAr : p.defaultLabelEn;
+    }
+
+    function formatShortTime(ts, fallback) {
+      if (fallback) return fallback;
+      const d = new Date(ts);
+      const mon = d.toLocaleString('en-US', { month: 'short' });
+      return `${mon} ${d.getDate()}`;
+    }
+
+    // =========================================================================
+    // 5. FILTERING & SORTING LOGIC
+    // =========================================================================
+    function getFolderName(folderId) {
+      if (!folderId || folderId === 'none') return '';
+      const f = (state.folders || []).find(x => x.id === folderId);
+      if (!f) return '';
+      return state.lang === 'ar' ? f.nameAr : f.nameEn;
+    }
+
+    function getFilteredAndSortedNotes(statusFilter = 'active', customSearch = null) {
+      let list = state.notes.filter(n => n.status === statusFilter);
+
+      if (statusFilter === 'active' && customSearch === null) {
+        if (state.colorFilter !== null) {
+          list = list.filter(n => n.colorIndex === state.colorFilter);
+        }
+        if (state.selectedFolderId && state.selectedFolderId !== 'all') {
+          list = list.filter(n => n.folderId === state.selectedFolderId);
+        }
+      }
+
+      if (customSearch !== null) {
+        const q = customSearch.query.trim().toLowerCase();
+        if (customSearch.color !== null) {
+          list = list.filter(n => n.colorIndex === customSearch.color);
+        }
+        if (customSearch.type !== 'all') {
+          list = list.filter(n => {
+            if (customSearch.type === 'text') return n.type === 'text';
+            if (customSearch.type === 'checklist') return n.type === 'checklist';
+            if (customSearch.type === 'locked') return n.locked;
+            if (customSearch.type === 'reminder') return Boolean(n.reminderDate);
+            if (customSearch.type === 'done') return n.checked;
+            return true;
+          });
+        }
+        if (q) {
+          list = list.filter(n => {
+            const inTitle = n.title.toLowerCase().includes(q);
+            if (n.locked && !state.unlockedNoteIds[n.id]) return inTitle;
+            const inContent = (n.content || '').toLowerCase().includes(q);
+            const inItems = (n.items || []).some(it => it.text.toLowerCase().includes(q));
+            return inTitle || inContent || inItems;
+          });
+        }
+      }
+
+      list.sort((a, b) => {
+        if (state.sortBy === 'color') {
+          if (a.colorIndex !== b.colorIndex) return a.colorIndex - b.colorIndex;
+          return b.modifiedDate - a.modifiedDate;
+        }
+        if (state.sortBy === 'modified') {
+          return b.modifiedDate - a.modifiedDate;
+        }
+        if (state.sortBy === 'created') {
+          return b.createdDate - a.createdDate;
+        }
+        if (state.sortBy === 'alpha') {
+          return a.title.localeCompare(b.title);
+        }
+        if (state.sortBy === 'reminder') {
+          const ra = a.reminderDate ? new Date(a.reminderDate).getTime() : 0;
+          const rb = b.reminderDate ? new Date(b.reminderDate).getTime() : 0;
+          if (rb !== ra) return rb - ra;
+          return b.modifiedDate - a.modifiedDate;
+        }
+        return 0;
+      });
+
+      return list;
+    }
+
+    // =========================================================================
+    // 6. RENDERING: MAIN NOTES VIEW (List, Grid, Details, Large Grid)
+    // =========================================================================
+    function renderFoldersUI() {
+      const strip = document.getElementById('foldersPillsStrip');
+      const dirCont = document.getElementById('foldersDirectoryContainer');
+      if (!strip || !dirCont) return;
+
+      const allCount = state.notes.filter(n => n.status === 'active').length;
+      const pillsHtml = [
+        `<button type="button" data-folder-pill="all" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold shrink-0 transition ${state.selectedFolderId === 'all' && !state.foldersDirectoryOpen ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">الكل (${allCount})</button>`
+      ].concat((state.folders || []).map(f => {
+        const c = state.notes.filter(n => n.status === 'active' && n.folderId === f.id).length;
+        const active = state.selectedFolderId === f.id && !state.foldersDirectoryOpen;
+        return `<button type="button" data-folder-pill="${f.id}" class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold shrink-0 transition flex items-center gap-1 ${active ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}"><span>📁</span><span>${escapeHtml(state.lang === 'ar' ? f.nameAr : f.nameEn)}</span><span class="opacity-75 text-[10px]">(${c})</span></button>`;
+      })).join('');
+
+      strip.innerHTML = pillsHtml;
+      strip.querySelectorAll('[data-folder-pill]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.selectedFolderId = btn.getAttribute('data-folder-pill');
+          state.foldersDirectoryOpen = false;
+          renderNotesView();
+        });
+      });
+
+      // KiteTech Folders Directory List (Screenshot 1 Right Phone)
+      dirCont.classList.toggle('hidden', !state.foldersDirectoryOpen);
+      if (state.foldersDirectoryOpen) {
+        dirCont.innerHTML = (state.folders || []).map(f => {
+          const c = state.notes.filter(n => n.status === 'active' && n.folderId === f.id).length;
+          return `
+            <div data-open-folder-dir="${f.id}" class="px-3.5 py-3 flex items-center justify-between hover:bg-emerald-50/60 cursor-pointer transition">
+              <div class="flex items-center gap-3">
+                <span class="text-xl text-emerald-600">📁</span>
+                <span class="text-sm font-bold text-slate-800">${escapeHtml(state.lang === 'ar' ? f.nameAr : f.nameEn)}</span>
+              </div>
+              <span class="text-xs font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full">${c} ملاحظة</span>
+            </div>
+          `;
+        }).join('');
+
+        dirCont.querySelectorAll('[data-open-folder-dir]').forEach(row => {
+          row.addEventListener('click', () => {
+            state.selectedFolderId = row.getAttribute('data-open-folder-dir');
+            state.foldersDirectoryOpen = false;
+            renderNotesView();
+          });
+        });
+      }
+    }
+
+    function renderNotesView() {
+      renderFoldersUI();
+      const container = document.getElementById('notesContainer');
+      const notes = getFilteredAndSortedNotes('active');
+      const t = I18N[state.lang];
+
+      // Update badges & sort bar
+      document.getElementById('notesCountBadge').textContent = notes.length;
+      document.getElementById('currentSortLabel').textContent = t.sortNames[state.sortBy];
+      document.getElementById('currentViewBadge').textContent = t.viewModes[state.viewMode];
+      document.getElementById('viewModeLabel').textContent = t.viewModes[state.viewMode];
+
+      // Update status bar pinned indicator
+      const pinnedCount = state.notes.filter(n => n.status === 'active' && n.widgetPinned).length;
+      const pinInd = document.getElementById('statusBarPinnedIndicator');
+      if (pinnedCount > 0) {
+        pinInd.classList.remove('hidden');
+        pinInd.classList.add('inline-flex');
+        document.getElementById('statusBarPinnedCount').textContent = pinnedCount;
+      } else {
+        pinInd.classList.add('hidden');
+      }
+
+      // Color filter pill
+      const clearBtn = document.getElementById('btnClearColorFilter');
+      const activeBadge = document.getElementById('activeColorBadge');
+      if (state.colorFilter !== null) {
+        const pal = getPalette(state.colorFilter);
+        clearBtn.classList.remove('hidden');
+        clearBtn.classList.add('inline-flex');
+        document.getElementById('activeColorFilterDot').style.backgroundColor = pal.stripe;
+        document.getElementById('activeColorFilterName').textContent = state.lang === 'ar' ? pal.nameAr : pal.nameEn;
+        activeBadge.classList.remove('hidden');
+        activeBadge.style.backgroundColor = pal.stripe;
+      } else {
+        clearBtn.classList.add('hidden');
+        activeBadge.classList.add('hidden');
+      }
+
+      if (notes.length === 0) {
+        container.className = 'p-6 text-center text-slate-500 text-xs bg-white rounded-lg border border-slate-200 my-2';
+        container.innerHTML = `<div class="text-3xl mb-2">📝</div><div>${t.emptyNotes}</div>`;
+        return;
+      }
+
+      // Set layout classes according to viewMode
+      if (state.viewMode === 'grid') {
+        container.className = 'grid grid-cols-2 gap-2 p-1';
+      } else if (state.viewMode === 'largeGrid') {
+        container.className = 'grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-1';
+      } else {
+        container.className = 'space-y-1';
+      }
+
+      container.innerHTML = notes.map(note => buildNoteCardHtml(note, state.viewMode)).join('');
+
+      // Attach click events to each note card
+      container.querySelectorAll('[data-note-card-id]').forEach(el => {
+        el.addEventListener('click', (e) => {
+          const quickDoneBtn = e.target.closest('[data-quick-done-id]');
+          if (quickDoneBtn) {
+            e.stopPropagation();
+            const nid = Number(quickDoneBtn.getAttribute('data-quick-done-id'));
+            toggleNoteCheckedStatus(nid);
+            return;
+          }
+          const nid = Number(el.getAttribute('data-note-card-id'));
+          requestOpenNote(nid);
+        });
+      });
+    }
+
+    function buildNoteCardHtml(note, mode) {
+      const pal = getPalette(note);
+      const isUnlocked = !note.locked || Boolean(state.unlockedNoteIds[note.id]);
+      const strikeClass = note.checked ? 'line-through opacity-55' : '';
+      const timeLabel = formatShortTime(note.modifiedDate, note.displayTime);
+
+      // Compute checklist summary or snippet
+      let bodyPreview = '';
+      let checklistBadge = '';
+      if (note.type === 'checklist') {
+        const total = (note.items || []).length;
+        const done = (note.items || []).filter(i => i.checked).length;
+        checklistBadge = `<span class="text-[10px] font-mono bg-black/10 px-1.5 py-0.5 rounded text-slate-800">☑️ ${done}/${total}</span>`;
+        if (isUnlocked) {
+          bodyPreview = (note.items || []).slice(0, 4).map(it =>
+            `<div class="truncate text-[11px] ${it.checked ? 'line-through opacity-55' : ''}">• ${escapeHtml(it.text)}</div>`
+          ).join('');
+        } else {
+          bodyPreview = `<div class="text-[11px] italic opacity-75">${I18N[state.lang].lockedContentPlaceholder}</div>`;
+        }
+      } else {
+        if (isUnlocked) {
+          bodyPreview = `<div class="text-[11px] text-slate-700 line-clamp-2 whitespace-pre-line">${escapeHtml(note.content || '')}</div>`;
+        } else {
+          bodyPreview = `<div class="text-[11px] italic text-slate-600">${I18N[state.lang].lockedContentPlaceholder}</div>`;
+        }
+      }
+
+      const folderName = getFolderName(note.folderId);
+      const folderBadge = folderName ? `<span class="text-[10px] bg-black/10 px-1.5 py-0.5 rounded text-slate-800 max-w-[90px] truncate">📁 ${escapeHtml(folderName.split('(')[0].trim())}</span>` : '';
+      const mediaBadge = (note.type === 'drawing' || note.drawingDataUrl || note.hasDemoLandscape)
+        ? '<span title="لوحة رسم">🎨</span>'
+        : ((note.attachments && note.attachments.length) ? '<span title="صورة مرفقة">🖼️</span>' : '');
+
+      const statusIconsHtml = `
+        <div class="flex items-center gap-1 shrink-0 text-slate-700 text-xs">
+          ${ folderBadge }
+          ${ mediaBadge }
+          ${ checklistBadge }
+          ${ note.locked ? '<span title="Locked">🔒</span>' : '' }
+          ${ note.reminderDate ? `<span title="Reminder: ${note.reminderDate}" class="text-[11px] bg-black/10 px-1 rounded">⏰</span>` : '' }
+          ${ note.widgetPinned ? '<span title="Pinned to Widget" class="text-[11px]">📌</span>' : '' }
+          <button type="button" data-quick-done-id="${note.id}" title="تأشير كمنجز" class="w-5 h-5 rounded flex items-center justify-center hover:bg-black/10 ${note.checked ? 'text-teal-800 font-bold' : 'opacity-40 hover:opacity-90'}">✓</button>
+          <span class="text-[11px] text-slate-600 font-medium min-w-[46px] text-end">${escapeHtml(timeLabel)}</span>
+        </div>
+      `;
+
+      // Classic ColorNote List Row OR KiteTech AMOLED Pure Black Row with Green Divider
+      if (mode === 'list') {
+        if (state.appThemeStyle === 'amoled_black') {
+          return `
+            <div data-note-card-id="${note.id}"
+                 style="background-color: #000000; border-bottom: 1.5px solid #55b535; border-inline-start: 6px solid ${pal.stripe};"
+                 class="py-2.5 px-3 flex flex-col gap-0.5 cursor-pointer hover:bg-slate-900 transition select-none">
+              <div class="flex items-center justify-between gap-2">
+                <div class="font-bold text-[15px] text-white truncate ${strikeClass}">${escapeHtml(note.title || '(بدون عنوان)')}</div>
+                <span class="text-[11px] text-emerald-400 font-medium">${escapeHtml(timeLabel)}</span>
+              </div>
+              <div class="text-xs text-slate-300 line-clamp-2">${isUnlocked ? escapeHtml(note.content || '') : '🔒'}</div>
+            </div>
+          `;
+        }
+        return `
+          <div data-note-card-id="${note.id}"
+               style="background-color: ${pal.body}; border-inline-start: 8px solid ${pal.stripe}; border-bottom: 1px solid ${pal.border};"
+               class="h-[52px] px-3 flex items-center justify-between gap-2 cursor-pointer hover:brightness-95 transition select-none rounded-sm shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+            <div class="font-semibold text-[15px] text-slate-900 truncate ${strikeClass}">
+              ${escapeHtml(note.title || '(بدون عنوان)')}
+            </div>
+            ${statusIconsHtml}
+          </div>
+        `;
+      }
+
+      // Details Row (Title + 2 lines preview)
+      if (mode === 'details') {
+        return `
+          <div data-note-card-id="${note.id}"
+               style="background-color: ${pal.body}; border-inline-start: 8px solid ${pal.stripe}; border-bottom: 1px solid ${pal.border};"
+               class="p-2.5 flex flex-col gap-1 cursor-pointer hover:brightness-95 transition rounded-sm shadow-sm">
+            <div class="flex items-center justify-between gap-2">
+              <div class="font-bold text-sm text-slate-900 truncate ${strikeClass}">${escapeHtml(note.title || '(بدون عنوان)')}</div>
+              ${statusIconsHtml}
+            </div>
+            <div class="ps-1 pt-0.5 border-t border-black/5">${bodyPreview}</div>
+          </div>
+        `;
+      }
+
+      // Grid / Large Sticky Note Card
+      return `
+        <div data-note-card-id="${note.id}"
+             style="background-color: ${pal.body}; border-top: 10px solid ${pal.header};"
+             class="sticky-curl p-2.5 rounded-sm cursor-pointer hover:brightness-95 transition flex flex-col justify-between min-h-[135px]">
+          <div>
+            <div class="flex items-start justify-between gap-1 border-b border-black/10 pb-1 mb-1.5">
+              <div class="font-bold text-xs text-slate-900 truncate ${strikeClass}">${escapeHtml(note.title || '(بدون عنوان)')}</div>
+              <div class="flex items-center gap-0.5 text-[11px] shrink-0">
+                ${note.locked ? '🔒' : ''}
+                ${note.checked ? '✓' : ''}
+              </div>
+            </div>
+            <div class="space-y-0.5">${bodyPreview}</div>
+          </div>
+          <div class="flex items-center justify-between text-[10px] text-slate-600 pt-2 mt-2 border-t border-black/5">
+            <span>${getColorLabel(note)}</span>
+            <span>${escapeHtml(timeLabel)}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    // =========================================================================
+    // 7. RENDERING: CALENDAR VIEW
+    // =========================================================================
+    function renderCalendarView() {
+      const year = state.calendarYear;
+      const month = state.calendarMonth;
+      const monthNamesAr = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+      const monthNamesEn = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+      document.getElementById('calendarMonthTitle').textContent =
+        state.lang === 'ar' ? `${monthNamesAr[month]} ${year}` : `${monthNamesEn[month]} ${year}`;
+
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const grid = document.getElementById('calendarGrid');
+
+      let cellsHtml = '';
+      for (let i = 0; i < firstDay; i++) {
+        cellsHtml += `<div class="h-14 bg-slate-50 rounded border border-slate-100"></div>`;
+      }
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dayNotes = state.notes.filter(n => n.status === 'active' && n.reminderDate === dateStr);
+        const isSelected = state.selectedCalendarDate === dateStr;
+        const isToday = dateStr === '2026-10-29';
+
+        const barsHtml = dayNotes.slice(0, 2).map(n => {
+          const pal = getPalette(n);
+          return `<div style="background-color:${pal.stripe};" class="text-[9px] text-white px-1 rounded truncate leading-tight">${escapeHtml(n.title)}</div>`;
+        }).join('');
+
+        const moreBadge = dayNotes.length > 2 ? `<div class="text-[9px] text-slate-500 font-bold">+${dayNotes.length - 2}</div>` : '';
+
+        cellsHtml += `
+          <button type="button" data-cal-date="${dateStr}"
+                  class="h-14 p-1 rounded border text-start flex flex-col justify-between transition overflow-hidden ${
+                    isSelected ? 'border-teal-600 bg-teal-50/70 ring-1 ring-teal-600' : 'border-slate-200 bg-white hover:bg-slate-50'
+                  }">
+            <div class="flex items-center justify-between w-full">
+              <span class="text-[11px] font-bold ${isToday ? 'bg-teal-600 text-white px-1.5 rounded-full' : 'text-slate-700'}">${day}</span>
+              ${dayNotes.length > 0 ? `<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>` : ''}
+            </div>
+            <div class="space-y-0.5 w-full overflow-hidden">
+              ${barsHtml}
+              ${moreBadge}
+            </div>
+          </button>
+        `;
+      }
+
+      grid.innerHTML = cellsHtml;
+
+      grid.querySelectorAll('[data-cal-date]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.selectedCalendarDate = btn.getAttribute('data-cal-date');
+          renderCalendarView();
+        });
+      });
+
+      // Render selected day notes list
+      document.getElementById('selectedDateSub').textContent =
+        state.lang === 'ar' ? `التاريخ المحدد: ${state.selectedCalendarDate}` : `Selected Date: ${state.selectedCalendarDate}`;
+
+      const dayNotes = state.notes.filter(n => n.status === 'active' && n.reminderDate === state.selectedCalendarDate);
+      const listEl = document.getElementById('calendarDayNotesList');
+      if (dayNotes.length === 0) {
+        listEl.innerHTML = `<div class="text-xs text-slate-400 py-3 text-center">لا توجد ملاحظات مجدولة في هذا اليوم (${state.selectedCalendarDate}).</div>`;
+      } else {
+        listEl.innerHTML = dayNotes.map(n => buildNoteCardHtml(n, 'list')).join('');
+        listEl.querySelectorAll('[data-note-card-id]').forEach(el => {
+          el.addEventListener('click', () => requestOpenNote(Number(el.getAttribute('data-note-card-id'))));
+        });
+      }
+    }
+
+    // =========================================================================
+    // 8. RENDERING: SEARCH VIEW
+    // =========================================================================
+    function renderSearchView() {
+      const strip = document.getElementById('searchColorStrip');
+      strip.innerHTML = `
+        <button type="button" data-search-color="all" class="px-2 py-1 rounded text-[11px] font-bold border ${state.colorFilter === null ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-700 border-slate-300'}">الكل</button>
+      ` + getAllPalettes().map(p => `
+        <button type="button" data-search-color="${p.index}" title="${p.nameAr}"
+                style="background-color: ${p.stripe};"
+                class="w-6 h-6 rounded-full border-2 ${state.colorFilter === p.index ? 'border-slate-900 scale-110 shadow' : 'border-white'} transition"></button>
+      `).join('');
+
+      strip.querySelectorAll('[data-search-color]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const val = btn.getAttribute('data-search-color');
+          state.colorFilter = val === 'all' ? null : Number(val);
+          renderSearchView();
+        });
+      });
+
+      const results = getFilteredAndSortedNotes('active', {
+        query: state.searchQuery,
+        color: state.colorFilter,
+        type: state.searchTypeFilter
+      });
+
+      const resContainer = document.getElementById('searchResultsContainer');
+      if (results.length === 0) {
+        resContainer.innerHTML = `<div class="bg-white rounded-lg border border-slate-200 p-6 text-center text-xs text-slate-500">لا توجد نتائج مطابقة لبحثك.</div>`;
+      } else {
+        resContainer.innerHTML = results.map(n => buildNoteCardHtml(n, 'details')).join('');
+        resContainer.querySelectorAll('[data-note-card-id]').forEach(el => {
+          el.addEventListener('click', () => requestOpenNote(Number(el.getAttribute('data-note-card-id'))));
+        });
+      }
+    }
+
+    // =========================================================================
+    // 9. RENDERING: STICKY WIDGETS SIMULATOR (Screenshot 2)
+    // =========================================================================
+    function renderWidgetsView() {
+      const activeNotes = state.notes.filter(n => n.status === 'active');
+      const pinnedNotes = activeNotes.filter(n => n.widgetPinned);
+      const largeList = pinnedNotes.length > 0 ? pinnedNotes : activeNotes.slice(0, 2);
+
+      const largeGrid = document.getElementById('largeWidgetsGrid');
+      largeGrid.innerHTML = largeList.map(n => {
+        const pal = getPalette(n);
+        let bodyHtml = '';
+        if (n.locked && !state.unlockedNoteIds[n.id]) {
+          bodyHtml = `<div class="text-[11px] italic text-slate-600 py-4 text-center">🔒 مقفلة</div>`;
+        } else if (n.type === 'checklist') {
+          bodyHtml = (n.items || []).slice(0, 6).map(it => `
+            <div data-widget-check-note="${n.id}" data-widget-check-item="${it.id}"
+                 class="flex items-center justify-between gap-1 py-0.5 border-b border-black/10 text-[11px] text-slate-900 cursor-pointer hover:bg-black/5 px-1 rounded">
+              <span class="truncate ${it.checked ? 'line-through opacity-50' : 'font-medium'}">-${escapeHtml(it.text)}</span>
+              <span class="text-[10px] font-bold">${it.checked ? '✓' : '☐'}</span>
+            </div>
+          `).join('');
+        } else {
+          bodyHtml = `<div class="text-[11px] text-slate-800 whitespace-pre-line line-clamp-5 leading-snug">${escapeHtml(n.content)}</div>`;
+        }
+
+        return `
+          <div style="background-color: ${pal.body};" class="sticky-curl rounded-sm overflow-hidden flex flex-col justify-between min-h-[165px] text-slate-900 border border-black/15">
+            <div>
+              <div style="background-color: ${pal.header};" class="px-2 py-1 flex items-center justify-between text-white">
+                <span data-widget-open-id="${n.id}" class="font-bold text-xs truncate cursor-pointer hover:underline">${escapeHtml(n.title)}</span>
+                <button type="button" data-widget-unpin-id="${n.id}" title="إلغاء التثبيت من الودجت" class="text-[11px] opacity-85 hover:opacity-100">📌</button>
+              </div>
+              <div class="p-2 space-y-0.5" data-widget-open-id="${n.id}">${bodyHtml}</div>
+            </div>
+            <div class="px-2 py-1 bg-black/5 text-[10px] text-slate-600 flex items-center justify-between">
+              <span>${escapeHtml(formatShortTime(n.modifiedDate, n.displayTime))}</span>
+              <button type="button" data-widget-open-id="${n.id}" class="font-bold text-teal-800 hover:underline">فتح ↗</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Mini 1x1 Stickers (Bottom half of Screenshot 2)
+      const miniGrid = document.getElementById('miniWidgetsGrid');
+      miniGrid.innerHTML = activeNotes.slice(0, 8).map(n => {
+        const pal = getPalette(n);
+        const uncheckedCount = n.type === 'checklist' ? (n.items || []).filter(i => !i.checked).length : 0;
+        return `
+          <div data-widget-open-id="${n.id}"
+               style="background-color: ${pal.body}; border-top: 8px solid ${pal.stripe};"
+               class="sticky-curl h-16 p-1.5 rounded-sm cursor-pointer hover:scale-105 transition relative flex flex-col justify-between text-slate-900">
+            ${uncheckedCount > 0 ? `<span class="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center shadow">${uncheckedCount}</span>` : ''}
+            <div class="text-[11px] font-bold leading-tight line-clamp-2 ${n.checked ? 'line-through opacity-60' : ''}">${escapeHtml(n.title)}</div>
+            <div class="text-[9px] text-slate-500 flex items-center justify-between">
+              <span>${n.type === 'checklist' ? '☑️' : '📝'}</span>
+              <span>${n.locked ? '🔒' : ''}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Bind interactive checklist toggle directly on widget!
+      largeGrid.querySelectorAll('[data-widget-check-item]').forEach(row => {
+        row.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const nid = Number(row.getAttribute('data-widget-check-note'));
+          const itemId = row.getAttribute('data-widget-check-item');
+          const note = state.notes.find(x => x.id === nid);
+          if (note && note.type === 'checklist') {
+            const item = note.items.find(i => i.id === itemId);
+            if (item) {
+              item.checked = !item.checked;
+              saveState();
+              renderWidgetsView();
+              showToast(item.checked ? 'تم تأشير العنصر من الودجت ✓' : 'تم إلغاء التأشير');
+            }
+          }
+        });
+      });
+
+      // Bind unpin
+      largeGrid.querySelectorAll('[data-widget-unpin-id]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const nid = Number(btn.getAttribute('data-widget-unpin-id'));
+          const note = state.notes.find(x => x.id === nid);
+          if (note) {
+            note.widgetPinned = !note.widgetPinned;
+            saveState();
+            renderWidgetsView();
+            showToast(note.widgetPinned ? 'تم التثبيت في الودجت 📌' : 'تمت الإزالة من الودجت');
+          }
+        });
+      });
+
+      // Bind open note from widget
+      document.querySelectorAll('#viewWidgets [data-widget-open-id]').forEach(el => {
+        el.addEventListener('click', () => {
+          const nid = Number(el.getAttribute('data-widget-open-id'));
+          requestOpenNote(nid);
+        });
+      });
+    }
+
+    // =========================================================================
+    // 10. RENDERING: MORE VIEW (Archive, Trash, Settings, REA SQLite Inspector)
+    // =========================================================================
+    function renderMoreView() {
+      const panels = {
+        archive: document.getElementById('morePanelArchive'),
+        trash: document.getElementById('morePanelTrash'),
+        settings: document.getElementById('morePanelSettings'),
+        rea: document.getElementById('morePanelRea')
+      };
+      Object.keys(panels).forEach(k => {
+        panels[k].classList.toggle('hidden', k !== state.moreSubTab);
+      });
+
+      document.querySelectorAll('.more-tab-btn').forEach(btn => {
+        const tab = btn.getAttribute('data-more-tab');
+        if (tab === state.moreSubTab) {
+          btn.className = 'more-tab-btn py-1.5 rounded bg-teal-600 text-white';
+        } else {
+          btn.className = 'more-tab-btn py-1.5 rounded text-slate-700 hover:bg-slate-100';
+        }
+      });
+
+      // 1. Archive List
+      const archived = getFilteredAndSortedNotes('archived');
+      document.getElementById('archiveCountBadge').textContent = archived.length;
+      const archCont = document.getElementById('archiveListContainer');
+      if (archived.length === 0) {
+        archCont.innerHTML = `<div class="text-xs text-slate-400 py-4 text-center">الأرشيف فارغ حالياً.</div>`;
+      } else {
+        archCont.innerHTML = archived.map(n => {
+          const pal = getPalette(n);
+          return `
+            <div style="background-color:${pal.body}; border-inline-start: 6px solid ${pal.stripe};"
+                 class="p-2 rounded border border-slate-200 flex items-center justify-between gap-2">
+              <div class="truncate text-xs font-bold text-slate-800">${escapeHtml(n.title)}</div>
+              <div class="flex items-center gap-1 shrink-0">
+                <button type="button" data-unarchive-id="${n.id}" class="bg-teal-600 text-white text-[11px] px-2 py-0.5 rounded font-semibold">استعادة للملاحظات</button>
+                <button type="button" data-trash-from-arch-id="${n.id}" class="bg-red-100 text-red-700 text-[11px] px-2 py-0.5 rounded font-semibold">🗑️</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        archCont.querySelectorAll('[data-unarchive-id]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const note = state.notes.find(x => x.id === Number(btn.getAttribute('data-unarchive-id')));
+            if (note) {
+              note.status = 'active';
+              saveState();
+              renderMoreView();
+              showToast('تمت استعادة الملاحظة من الأرشيف');
+            }
+          });
+        });
+        archCont.querySelectorAll('[data-trash-from-arch-id]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const note = state.notes.find(x => x.id === Number(btn.getAttribute('data-trash-from-arch-id')));
+            if (note) {
+              note.status = 'trash';
+              saveState();
+              renderMoreView();
+              showToast('نُقلت إلى سلة المحذوفات');
+            }
+          });
+        });
+      }
+
+      // 2. Trash List
+      const trashed = getFilteredAndSortedNotes('trash');
+      const trashCont = document.getElementById('trashListContainer');
+      if (trashed.length === 0) {
+        trashCont.innerHTML = `<div class="text-xs text-slate-400 py-4 text-center">سلة المحذوفات فارغة.</div>`;
+      } else {
+        trashCont.innerHTML = trashed.map(n => {
+          const pal = getPalette(n);
+          return `
+            <div style="background-color:${pal.body}; border-inline-start: 6px solid ${pal.stripe};"
+                 class="p-2 rounded border border-slate-200 flex items-center justify-between gap-2">
+              <div class="truncate text-xs font-bold text-slate-800">${escapeHtml(n.title)}</div>
+              <div class="flex items-center gap-1 shrink-0">
+                <button type="button" data-restore-trash-id="${n.id}" class="bg-emerald-600 text-white text-[11px] px-2 py-0.5 rounded font-semibold">استعادة</button>
+                <button type="button" data-perm-delete-id="${n.id}" class="bg-red-600 text-white text-[11px] px-2 py-0.5 rounded font-semibold">حذف نهائي</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        trashCont.querySelectorAll('[data-restore-trash-id]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const note = state.notes.find(x => x.id === Number(btn.getAttribute('data-restore-trash-id')));
+            if (note) {
+              note.status = 'active';
+              saveState();
+              renderMoreView();
+              showToast('تمت استعادة الملاحظة بنجاح');
+            }
+          });
+        });
+        trashCont.querySelectorAll('[data-perm-delete-id]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const id = Number(btn.getAttribute('data-perm-delete-id'));
+            state.notes = state.notes.filter(x => x.id !== id);
+            saveState();
+            renderMoreView();
+            showToast('تم حذف الملاحظة نهائياً');
+          });
+        });
+      }
+
+      // 3. Settings Color Labels Grid
+      const labelsGrid = document.getElementById('settingsColorLabelsGrid');
+      labelsGrid.innerHTML = getAllPalettes().map(p => `
+        <div class="flex items-center gap-2">
+          <span style="background-color:${p.stripe};" class="w-4 h-4 rounded shrink-0 border border-black/15"></span>
+          <span class="text-xs font-semibold w-14 text-slate-700">${state.lang === 'ar' ? p.nameAr : p.nameEn}</span>
+          <input type="text" data-color-label-input="${p.index}" value="${escapeHtml(getColorLabel(p.index))}"
+                 class="flex-1 bg-slate-50 border border-slate-300 rounded px-2 py-1 text-xs text-slate-800" />
+        </div>
+      `).join('');
+
+      labelsGrid.querySelectorAll('[data-color-label-input]').forEach(inp => {
+        inp.addEventListener('change', () => {
+          const idx = Number(inp.getAttribute('data-color-label-input'));
+          state.colorLabels[idx] = inp.value.trim();
+          saveState();
+          showToast('تم تحديث تسمية اللون');
+        });
+      });
+
+      // 4. REA Live SQLite Table Inspector
+      const tbody = document.getElementById('reaSqliteTableBody');
+      tbody.innerHTML = state.notes.map(n => `
+        <tr class="hover:bg-slate-50">
+          <td class="p-1.5 border-e">${n.id}</td>
+          <td class="p-1.5 border-e">${n.type === 'checklist' ? '1 (List)' : '0 (Text)'}</td>
+          <td class="p-1.5 border-e truncate max-w-[110px]">${escapeHtml(n.title)}</td>
+          <td class="p-1.5 border-e">${n.colorIndex} (${getPalette(n.colorIndex).nameEn})</td>
+          <td class="p-1.5 border-e">${n.checked ? '1' : '0'}</td>
+          <td class="p-1.5 border-e">${n.locked ? '1 🔒' : '0'}</td>
+          <td class="p-1.5">${n.status}</td>
+        </tr>
+      `).join('');
+    }
+
+    // =========================================================================
+    // 11. NOTE & CHECKLIST EDITOR LOGIC
+    // =========================================================================
+    function requestOpenNote(noteId) {
+      const note = state.notes.find(n => n.id === noteId);
+      if (!note) return;
+
+      if (note.locked && !state.unlockedNoteIds[note.id]) {
+        state.pendingPinNoteId = note.id;
+        state.pendingPinAction = 'open';
+        document.getElementById('inputVerifyPin').value = '';
+        document.getElementById('pinErrorMsg').classList.add('hidden');
+        document.getElementById('modalPinPrompt').classList.remove('hidden');
+        setTimeout(() => document.getElementById('inputVerifyPin').focus(), 50);
+        return;
+      }
+
+      openEditorWithNote(note);
+    }
+
+    function createNewNote(type, presetDate = '') {
+      const defaultColor = state.colorFilter !== null ? state.colorFilter : 2; // Yellow default
+      const now = Date.now();
+      const defaultFolder = (state.selectedFolderId && state.selectedFolderId !== 'all') ? state.selectedFolderId : 'important';
+      let defaultTitle = state.lang === 'ar' ? 'ملاحظة جديدة' : 'New note';
+      if (type === 'checklist') defaultTitle = state.lang === 'ar' ? 'قائمة جديدة' : 'New checklist';
+      if (type === 'drawing') defaultTitle = state.lang === 'ar' ? 'رسم وكتابة يدوية 🎨' : 'Handwriting and drawing';
+
+      const newNote = {
+        id: now,
+        type: type, // 'text' | 'checklist' | 'drawing'
+        title: defaultTitle,
+        content: '',
+        richHtml: '',
+        folderId: defaultFolder,
+        attachments: [],
+        drawingDataUrl: '',
+        items: type === 'checklist' ? [
+          { id: 'item_' + now + '_1', text: state.lang === 'ar' ? 'العنصر الأول' : 'First item', checked: false }
+        ] : [],
+        colorIndex: defaultColor,
+        createdDate: now,
+        modifiedDate: now,
+        displayTime: 'Just now',
+        reminderDate: presetDate || '',
+        checked: false,
+        locked: false,
+        status: 'active',
+        widgetPinned: false
+      };
+      state.notes.unshift(newNote);
+      saveState();
+      openEditorWithNote(newNote);
+    }
+
+    function openEditorWithNote(note) {
+      state.editingNoteId = note.id;
+      const overlay = document.getElementById('noteEditorOverlay');
+      overlay.classList.remove('hidden');
+      document.getElementById('editorColorPickerStrip').classList.toggle('hidden', !state.editorColorStripOpen);
+
+      syncEditorUI(note);
+    }
+
+    function syncEditorUI(note) {
+      const pal = getPalette(note);
+      const overlay = document.getElementById('noteEditorOverlay');
+      const header = document.getElementById('editorHeaderBar');
+      const swatch = document.getElementById('btnEditorColorSwatch');
+      const titleInp = document.getElementById('editorTitleInput');
+
+      overlay.style.backgroundColor = pal.body;
+      header.style.backgroundColor = pal.header;
+      swatch.style.backgroundColor = pal.stripe;
+
+      // Sync free color picker inputs with current note palette
+      const freeColorInp = document.getElementById('inputEditorFreeColor');
+      const headerDirectInp = document.getElementById('inputHeaderDirectColor');
+      const hexCodeInp = document.getElementById('inputEditorHexCode');
+      const tintSlider = document.getElementById('inputEditorTintSlider');
+      if (freeColorInp) freeColorInp.value = normalizeHex(pal.stripe);
+      if (headerDirectInp) headerDirectInp.value = normalizeHex(pal.stripe);
+      if (hexCodeInp && document.activeElement !== hexCodeInp) {
+        hexCodeInp.value = normalizeHex(pal.stripe).toUpperCase();
+      }
+      if (tintSlider) tintSlider.value = note.customTint || 84;
+
+      titleInp.value = note.title;
+      titleInp.style.textDecoration = note.checked ? 'line-through' : 'none';
+
+      document.getElementById('btnEditorToggleDone').textContent = note.checked ? '✅' : '☑️';
+      document.getElementById('btnEditorToggleLock').textContent = note.locked ? '🔒' : '🔓';
+      document.getElementById('btnEditorToggleWidget').style.opacity = note.widgetPinned ? '1' : '0.45';
+      document.getElementById('editorReminderDate').value = note.reminderDate || '';
+
+      const d = new Date(note.modifiedDate);
+      document.getElementById('editorTimestampLabel').textContent =
+        `${d.getMonth() + 1}/${d.getDate()}/${String(d.getFullYear()).slice(-2)} ${note.displayTime || '11:43 AM'}`;
+
+      // Build color picker swatches row (All default + user-saved custom palettes)
+      const swatchRow = document.getElementById('editorColorSwatchesRow');
+      swatchRow.innerHTML = getAllPalettes().map(p => {
+        const isSelected = !note.customHex && note.colorIndex === p.index;
+        return `
+          <button type="button" data-editor-pick-color="${p.index}" title="${escapeHtml(p.nameAr)}"
+                  style="background-color:${p.stripe};"
+                  class="w-7 h-7 shrink-0 rounded-full border-2 transition ${isSelected ? 'border-slate-950 scale-110 shadow-md ring-2 ring-slate-900/30' : 'border-white hover:scale-105'}"></button>
+        `;
+      }).join('');
+
+      swatchRow.querySelectorAll('[data-editor-pick-color]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          note.colorIndex = Number(btn.getAttribute('data-editor-pick-color'));
+          note.customHex = null;
+          note.modifiedDate = Date.now();
+          saveState();
+          syncEditorUI(note);
+        });
+      });
+
+      // Populate Folder Dropdown inside Editor
+      const folderSel = document.getElementById('editorFolderSelect');
+      if (folderSel) {
+        folderSel.innerHTML = `<option value="none">بدون مجلد (No Folder)</option>` +
+          (state.folders || []).map(f => `<option value="${f.id}" ${note.folderId === f.id ? 'selected' : ''}>📁 ${escapeHtml(state.lang === 'ar' ? f.nameAr : f.nameEn)}</option>`).join('');
+      }
+
+      // Toggle Text vs Checklist vs Drawing editor containers
+      const textCont = document.getElementById('editorTextModeContainer');
+      const listCont = document.getElementById('editorChecklistModeContainer');
+      const drawCont = document.getElementById('editorDrawingModeContainer');
+      const textarea = document.getElementById('editorTextarea');
+      const richEditable = document.getElementById('editorRichEditable');
+
+      if (note.type === 'drawing') {
+        textCont.classList.add('hidden');
+        listCont.classList.add('hidden');
+        drawCont.classList.remove('hidden');
+        initOrLoadDrawingCanvas(note);
+      } else if (note.type === 'checklist') {
+        textCont.classList.add('hidden');
+        drawCont.classList.add('hidden');
+        listCont.classList.remove('hidden');
+        renderEditorChecklistItems(note);
+      } else {
+        textCont.classList.remove('hidden');
+        listCont.classList.add('hidden');
+        drawCont.classList.add('hidden');
+        textarea.value = note.content || '';
+        if (richEditable && document.activeElement !== richEditable) {
+          richEditable.innerHTML = note.richHtml || escapeHtml(note.content || '').replace(/\n/g, '<br>');
+        }
+        textarea.classList.toggle('lined-paper', state.editorLinedPaper);
+        if (richEditable) richEditable.classList.toggle('lined-paper', state.editorLinedPaper);
+        renderNoteAttachmentsStrip(note);
+        updateEditorCountsAndLinks(note.content || '');
+      }
+    }
+
+    function updateEditorCountsAndLinks(text) {
+      const chars = text.length;
+      const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+      document.getElementById('editorCharWordCount').textContent =
+        state.lang === 'ar' ? `${words} كلمة • ${chars} حرف` : `${words} words • ${chars} chars`;
+
+      // Detect URLs / emails
+      const urlRegex = /(https?:\/\/[^\s]+)/g;
+      const matches = text.match(urlRegex) || [];
+      const linksBar = document.getElementById('editorDetectedLinksBar');
+      if (matches.length > 0) {
+        linksBar.classList.remove('hidden');
+        linksBar.innerHTML = `<span class="font-bold text-slate-600">🔗 روابط مكتشفة:</span>` +
+          matches.map(u => `<a href="${escapeHtml(u)}" target="_blank" rel="noopener noreferrer" class="text-blue-700 underline truncate max-w-[220px]">${escapeHtml(u)}</a>`).join('');
+      } else {
+        linksBar.classList.add('hidden');
+      }
+    }
+
+    function renderEditorChecklistItems(note) {
+      const items = note.items || [];
+      const doneCount = items.filter(i => i.checked).length;
+      document.getElementById('checklistProgressLabel').textContent =
+        state.lang === 'ar' ? `منجز: ${doneCount} / ${items.length}` : `Completed: ${doneCount} / ${items.length}`;
+      document.getElementById('editorCharWordCount').textContent = `${doneCount}/${items.length} ✓`;
+
+      const listEl = document.getElementById('editorChecklistItemsList');
+      if (items.length === 0) {
+        listEl.innerHTML = `<div class="p-6 text-center text-xs text-slate-500">لا توجد عناصر في القائمة بعد. أضف عنصراً من الحقل أعلاه!</div>`;
+        return;
+      }
+
+      listEl.innerHTML = items.map((item, idx) => `
+        <div class="flex items-center gap-2 px-3 h-[36px] hover:bg-black/5 transition">
+          <button type="button" data-check-item-idx="${idx}"
+                  class="w-5 h-5 rounded border ${item.checked ? 'bg-teal-600 border-teal-600 text-white' : 'bg-white border-slate-400 text-transparent'} flex items-center justify-center text-xs font-bold shrink-0">
+            ✓
+          </button>
+          <input type="text" data-edit-item-idx="${idx}" value="${escapeHtml(item.text)}"
+                 class="flex-1 bg-transparent text-sm text-slate-900 focus:outline-none ${item.checked ? 'line-through opacity-50' : 'font-medium'}" />
+          <div class="flex items-center gap-1 shrink-0">
+            <button type="button" data-move-up-idx="${idx}" title="لأعلى" class="px-1.5 py-0.5 text-xs text-slate-500 hover:text-slate-900">↑</button>
+            <button type="button" data-move-down-idx="${idx}" title="لأسفل" class="px-1.5 py-0.5 text-xs text-slate-500 hover:text-slate-900">↓</button>
+            <button type="button" data-del-item-idx="${idx}" title="حذف العنصر" class="px-1.5 py-0.5 text-sm text-red-600 hover:bg-red-100 rounded font-bold">×</button>
+          </div>
+        </div>
+      `).join('');
+
+      // Bind events
+      listEl.querySelectorAll('[data-check-item-idx]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = Number(btn.getAttribute('data-check-item-idx'));
+          note.items[idx].checked = !note.items[idx].checked;
+          // Auto mark note checked if all items checked
+          note.checked = note.items.length > 0 && note.items.every(i => i.checked);
+          note.modifiedDate = Date.now();
+          saveState();
+          syncEditorUI(note);
+        });
+      });
+
+      listEl.querySelectorAll('[data-edit-item-idx]').forEach(inp => {
+        inp.addEventListener('input', () => {
+          const idx = Number(inp.getAttribute('data-edit-item-idx'));
+          note.items[idx].text = inp.value;
+          note.modifiedDate = Date.now();
+          saveState();
+        });
+      });
+
+      listEl.querySelectorAll('[data-move-up-idx]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = Number(btn.getAttribute('data-move-up-idx'));
+          if (idx > 0) {
+            const tmp = note.items[idx - 1];
+            note.items[idx - 1] = note.items[idx];
+            note.items[idx] = tmp;
+            saveState();
+            renderEditorChecklistItems(note);
+          }
+        });
+      });
+
+      listEl.querySelectorAll('[data-move-down-idx]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = Number(btn.getAttribute('data-move-down-idx'));
+          if (idx < note.items.length - 1) {
+            const tmp = note.items[idx + 1];
+            note.items[idx + 1] = note.items[idx];
+            note.items[idx] = tmp;
+            saveState();
+            renderEditorChecklistItems(note);
+          }
+        });
+      });
+
+      listEl.querySelectorAll('[data-del-item-idx]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = Number(btn.getAttribute('data-del-item-idx'));
+          note.items.splice(idx, 1);
+          note.modifiedDate = Date.now();
+          saveState();
+          renderEditorChecklistItems(note);
+        });
+      });
+    }
+
+    function toggleNoteCheckedStatus(noteId) {
+      const note = state.notes.find(n => n.id === noteId);
+      if (!note) return;
+      note.checked = !note.checked;
+      note.modifiedDate = Date.now();
+      saveState();
+      renderAll();
+      showToast(note.checked ? 'تم تأشير الملاحظة كمنجزة ✓' : 'تم إعادة تفعيل الملاحظة');
+    }
+
+    function closeEditor() {
+      state.editingNoteId = null;
+      document.getElementById('noteEditorOverlay').classList.add('hidden');
+      renderAll();
+    }
+
+    // =========================================================================
+    // 12. MASTER RENDER & NAVIGATION CONTROLLER
+    // =========================================================================
+    function switchTab(tabName) {
+      state.currentTab = tabName;
+      const views = {
+        notes: document.getElementById('viewNotes'),
+        calendar: document.getElementById('viewCalendar'),
+        search: document.getElementById('viewSearch'),
+        widgets: document.getElementById('viewWidgets'),
+        more: document.getElementById('viewMore')
+      };
+      Object.keys(views).forEach(k => {
+        views[k].classList.toggle('hidden', k !== tabName);
+      });
+
+      // Show sortSubBar only on Notes tab
+      document.getElementById('sortSubBar').classList.toggle('hidden', tabName !== 'notes');
+
+      // Highlight active bottom nav button
+      document.querySelectorAll('.nav-tab-btn').forEach(btn => {
+        const t = btn.getAttribute('data-nav-tab');
+        if (t === tabName) {
+          btn.classList.add('text-teal-700', 'font-bold');
+        } else {
+          btn.classList.remove('text-teal-700', 'font-bold');
+        }
+      });
+
+      renderAll();
+    }
+
+    // =========================================================================
+    // KITETECH ATTACHMENTS, RICH TEXT & HANDWRITING / DRAWING STUDIO
+    // =========================================================================
+    function renderNoteAttachmentsStrip(note) {
+      const strip = document.getElementById('editorAttachmentsStrip');
+      if (!strip) return;
+      const list = [];
+      if (note.drawingDataUrl) {
+        list.push({ type: 'drawing', src: note.drawingDataUrl, label: 'لوحة مرسومة 🎨' });
+      }
+      if (Array.isArray(note.attachments)) {
+        note.attachments.forEach((att, idx) => {
+          list.push({ type: 'image', src: att.src, label: att.name || ('صورة ' + (idx + 1)), idx: idx });
+        });
+      }
+      if (list.length === 0) {
+        strip.classList.add('hidden');
+        strip.innerHTML = '';
+        return;
+      }
+      strip.classList.remove('hidden');
+      strip.innerHTML = list.map((item, i) => `
+        <div class="relative group shrink-0 border border-slate-300 rounded-lg overflow-hidden bg-white shadow-sm">
+          <img src="${item.src}" alt="${escapeHtml(item.label)}" class="h-16 w-24 object-cover" />
+          <button type="button" data-del-att-idx="${i}" data-del-att-type="${item.type}" class="absolute top-0.5 right-0.5 bg-red-600 text-white rounded-full w-4 h-4 text-[10px] font-bold flex items-center justify-center">×</button>
+        </div>
+      `).join('');
+
+      strip.querySelectorAll('[data-del-att-idx]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const t = btn.getAttribute('data-del-att-type');
+          if (t === 'drawing') {
+            note.drawingDataUrl = '';
+            note.hasDemoLandscape = false;
+          } else {
+            const idx = Number(btn.getAttribute('data-del-att-idx')) - (note.drawingDataUrl ? 1 : 0);
+            if (note.attachments) note.attachments.splice(idx, 1);
+          }
+          saveState();
+          renderNoteAttachmentsStrip(note);
+          showToast('تم حذف المرفق');
+        });
+      });
+    }
+
+    // Drawing Canvas State & BFS Flood Fill
+    let drawCtx = null;
+    let isDrawingStroke = false;
+    let currentDrawTool = 'pen'; // 'pen' | 'fill' | 'eraser'
+    let drawUndoStack = [];
+    let drawRedoStack = [];
+
+    function pushDrawSnapshot() {
+      const canvas = document.getElementById('drawingCanvas');
+      if (!canvas) return;
+      drawUndoStack.push(canvas.toDataURL());
+      if (drawUndoStack.length > 25) drawUndoStack.shift();
+      drawRedoStack = [];
+    }
+
+    function paintKiteTechDemoLandscape(ctx, w, h) {
+      // Exact recreation of KiteTech Screenshot 2 Phone 3 ("Handwriting and drawing" landscape)
+      // 1. Blue Sky
+      ctx.fillStyle = '#0048ff';
+      ctx.fillRect(0, 0, w, h * 0.45);
+      // 2. Yellow Sun with black outline
+      ctx.beginPath();
+      ctx.arc(w * 0.22, h * 0.14, 24, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffff00';
+      ctx.fill();
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = '#000000';
+      ctx.stroke();
+      // 3. Grey Mountains
+      ctx.beginPath();
+      ctx.moveTo(0, h * 0.28);
+      ctx.quadraticCurveTo(w * 0.25, h * 0.26, w * 0.45, h * 0.42);
+      ctx.quadraticCurveTo(w * 0.72, h * 0.29, w, h * 0.40);
+      ctx.lineTo(w, h * 0.55);
+      ctx.lineTo(0, h * 0.55);
+      ctx.closePath();
+      ctx.fillStyle = '#9ca3af';
+      ctx.fill();
+      ctx.stroke();
+      // 4. Green & Yellow Hills
+      ctx.beginPath();
+      ctx.moveTo(0, h * 0.52);
+      ctx.quadraticCurveTo(w * 0.4, h * 0.46, w, h * 0.56);
+      ctx.lineTo(w, h * 0.85);
+      ctx.lineTo(0, h * 0.85);
+      ctx.closePath();
+      ctx.fillStyle = '#22c55e';
+      ctx.fill();
+      ctx.stroke();
+      // 5. Foreground Soil
+      ctx.beginPath();
+      ctx.moveTo(0, h * 0.86);
+      ctx.quadraticCurveTo(w * 0.5, h * 0.72, w, h * 0.78);
+      ctx.lineTo(w, h);
+      ctx.lineTo(0, h);
+      ctx.closePath();
+      ctx.fillStyle = '#6b3410';
+      ctx.fill();
+      ctx.stroke();
+      // 6. Red-Roofed House on right hill
+      ctx.fillStyle = '#f97316';
+      ctx.fillRect(w * 0.72, h * 0.44, 65, 35);
+      ctx.strokeRect(w * 0.72, h * 0.44, 65, 35);
+      ctx.beginPath();
+      ctx.moveTo(w * 0.70, h * 0.44);
+      ctx.lineTo(w * 0.80, h * 0.37);
+      ctx.lineTo(w * 0.88, h * 0.44);
+      ctx.closePath();
+      ctx.fillStyle = '#ef4444';
+      ctx.fill();
+      ctx.stroke();
+      // 7. Green Trees
+      ctx.beginPath();
+      ctx.arc(w * 0.28, h * 0.44, 28, 0, Math.PI * 2);
+      ctx.fillStyle = '#15803d';
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    function initOrLoadDrawingCanvas(note) {
+      const canvas = document.getElementById('drawingCanvas');
+      if (!canvas) return;
+      drawCtx = canvas.getContext('2d');
+      drawCtx.fillStyle = '#ffffff';
+      drawCtx.fillRect(0, 0, canvas.width, canvas.height);
+
+      if (note.drawingDataUrl) {
+        const img = new Image();
+        img.onload = () => {
+          drawCtx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          pushDrawSnapshot();
+        };
+        img.src = note.drawingDataUrl;
+      } else if (note.hasDemoLandscape) {
+        paintKiteTechDemoLandscape(drawCtx, canvas.width, canvas.height);
+        note.drawingDataUrl = canvas.toDataURL();
+        saveState();
+        pushDrawSnapshot();
+      } else {
+        pushDrawSnapshot();
+      }
+    }
+
+    function canvasFloodFill(ctx, startX, startY, fillHex) {
+      const w = ctx.canvas.width;
+      const h = ctx.canvas.height;
+      const imgData = ctx.getImageData(0, 0, w, h);
+      const data = imgData.data;
+      const { r: fr, g: fg, b: fb } = hexToRgb(fillHex);
+
+      const x0 = Math.max(0, Math.min(w - 1, Math.floor(startX)));
+      const y0 = Math.max(0, Math.min(h - 1, Math.floor(startY)));
+      const startPos = (y0 * w + x0) * 4;
+      const sr = data[startPos], sg = data[startPos + 1], sb = data[startPos + 2];
+
+      if (Math.abs(sr - fr) < 5 && Math.abs(sg - fg) < 5 && Math.abs(sb - fb) < 5) return;
+
+      const visited = new Uint8Array(w * h);
+      const queue = [x0 + y0 * w];
+      visited[x0 + y0 * w] = 1;
+
+      while (queue.length > 0) {
+        const idx = queue.pop();
+        const px = idx * 4;
+        data[px] = fr;
+        data[px + 1] = fg;
+        data[px + 2] = fb;
+        data[px + 3] = 255;
+
+        const cx = idx % w;
+        const cy = (idx - cx) / w;
+        const neighbors = [];
+        if (cx > 0) neighbors.push(idx - 1);
+        if (cx < w - 1) neighbors.push(idx + 1);
+        if (cy > 0) neighbors.push(idx - w);
+        if (cy < h - 1) neighbors.push(idx + w);
+
+        for (let i = 0; i < neighbors.length; i++) {
+          const nIdx = neighbors[i];
+          if (!visited[nIdx]) {
+            const np = nIdx * 4;
+            if (Math.abs(data[np] - sr) <= 32 && Math.abs(data[np + 1] - sg) <= 32 && Math.abs(data[np + 2] - sb) <= 32) {
+              visited[nIdx] = 1;
+              queue.push(nIdx);
+            }
+          }
+        }
+      }
+      ctx.putImageData(imgData, 0, 0);
+    }
+
+    function applyThemeAndLanguage() {
+      const body = document.getElementById('appBody');
+      const shell = document.getElementById('appShell');
+      body.setAttribute('dir', state.lang === 'ar' ? 'rtl' : 'ltr');
+      body.setAttribute('lang', state.lang);
+
+      const t = I18N[state.lang];
+      document.getElementById('appSubtitleHeader').textContent = t.appSub;
+      document.getElementById('navLblNotes').textContent = t.navNotes;
+      document.getElementById('navLblCalendar').textContent = t.navCalendar;
+      document.getElementById('navLblNew').textContent = t.navNew;
+      document.getElementById('navLblSearch').textContent = t.navSearch;
+      document.getElementById('navLblMore').textContent = t.navMore;
+      document.getElementById('lblFloatingWidgetBtn').textContent = t.widgetBtn;
+      document.getElementById('btnToggleLang').textContent = state.lang === 'ar' ? 'EN' : 'عربي';
+
+      // Dark mode styling
+      body.classList.toggle('dark-mode', state.darkMode);
+      if (state.darkMode) {
+        body.classList.replace('bg-slate-200', 'bg-slate-950');
+        shell.classList.replace('bg-[#f3f3f3]', 'bg-slate-900');
+        document.getElementById('themeIcon').textContent = '☀️';
+      } else {
+        body.classList.replace('bg-slate-950', 'bg-slate-200');
+        shell.classList.replace('bg-slate-900', 'bg-[#f3f3f3]');
+        document.getElementById('themeIcon').textContent = '🌙';
+      }
+
+      // KiteTech App Bar Theme Style (Classic White / KiteTech Green #55b535 / KiteTech Blue #29b6f6 / AMOLED Black)
+      const appBar = document.getElementById('mainAppBar');
+      const titleHdr = document.getElementById('appTitleHeader');
+      const subHdr = document.getElementById('appSubtitleHeader');
+      shell.classList.toggle('amoled-mode', state.appThemeStyle === 'amoled_black');
+
+      if (state.appThemeStyle === 'kitetech_green' || state.appThemeStyle === 'amoled_black') {
+        appBar.style.backgroundColor = '#55b535';
+        titleHdr.style.color = '#ffffff';
+        subHdr.style.color = '#ecfccb';
+      } else if (state.appThemeStyle === 'kitetech_blue') {
+        appBar.style.backgroundColor = '#29b6f6';
+        titleHdr.style.color = '#ffffff';
+        subHdr.style.color = '#e0f2fe';
+      } else {
+        appBar.style.backgroundColor = '#ffffff';
+        titleHdr.style.color = '#1e293b';
+        subHdr.style.color = '#64748b';
+      }
+
+      // Desktop width toggle
+      if (state.fullWidthDesktop) {
+        shell.classList.remove('max-w-md');
+        shell.classList.add('max-w-4xl');
+      } else {
+        shell.classList.add('max-w-md');
+        shell.classList.remove('max-w-4xl');
+      }
+    }
+
+    function renderColorFilterModalGrid() {
+      const grid = document.getElementById('colorFilterGrid3x3');
+      grid.innerHTML = getAllPalettes().map(p => {
+        const count = state.notes.filter(n => n.status === 'active' && n.colorIndex === p.index).length;
+        return `
+          <button type="button" data-pick-filter-color="${p.index}"
+                  style="background-color: ${p.stripe};"
+                  class="h-16 rounded-lg p-2 text-white flex flex-col justify-between shadow hover:brightness-105 transition border-2 ${state.colorFilter === p.index ? 'border-slate-950 ring-2 ring-slate-900' : 'border-black/10'}">
+            <div class="flex items-center justify-between w-full">
+              <span class="text-xs font-bold drop-shadow">${state.lang === 'ar' ? p.nameAr : p.nameEn}</span>
+              <span class="bg-black/30 text-[10px] font-bold px-1.5 py-0.5 rounded-full">${count}</span>
+            </div>
+            <div class="text-[10px] opacity-90 truncate w-full text-start">${escapeHtml(getColorLabel(p.index))}</div>
+          </button>
+        `;
+      }).join('');
+
+      grid.querySelectorAll('[data-pick-filter-color]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.colorFilter = Number(btn.getAttribute('data-pick-filter-color'));
+          document.getElementById('modalColorFilter').classList.add('hidden');
+          switchTab('notes');
+        });
+      });
+    }
+
+    function renderAll() {
+      applyThemeAndLanguage();
+      renderNotesView();
+      if (state.currentTab === 'calendar') renderCalendarView();
+      if (state.currentTab === 'search') renderSearchView();
+      if (state.currentTab === 'widgets') renderWidgetsView();
+      if (state.currentTab === 'more') renderMoreView();
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // =========================================================================
+    // 13. EVENT LISTENERS INITIALIZATION
+    // =========================================================================
+    window.addEventListener('DOMContentLoaded', () => {
+      loadState();
+      renderAll();
+
+      // Navigation tabs
+      document.querySelectorAll('.nav-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.getAttribute('data-nav-tab')));
+      });
+
+      // Floating Widgets Quick Button
+      document.getElementById('btnQuickWidgetsTab').addEventListener('click', () => {
+        switchTab(state.currentTab === 'widgets' ? 'notes' : 'widgets');
+      });
+
+      // Desktop Full-Width Toggle
+      document.getElementById('btnDesktopWidthToggle').addEventListener('click', () => {
+        state.fullWidthDesktop = !state.fullWidthDesktop;
+        renderAll();
+      });
+
+      // Language Toggle
+      document.getElementById('btnToggleLang').addEventListener('click', () => {
+        state.lang = state.lang === 'ar' ? 'en' : 'ar';
+        saveState();
+        renderAll();
+      });
+
+      // Theme Toggle
+      document.getElementById('btnToggleTheme').addEventListener('click', () => {
+        state.darkMode = !state.darkMode;
+        saveState();
+        renderAll();
+      });
+
+      // Cycle View Mode (List -> Grid -> Details -> LargeGrid)
+      const modes = ['list', 'grid', 'details', 'largeGrid'];
+      document.getElementById('btnCycleViewMode').addEventListener('click', () => {
+        const nextIdx = (modes.indexOf(state.viewMode) + 1) % modes.length;
+        state.viewMode = modes[nextIdx];
+        saveState();
+        renderAll();
+        showToast(`طريقة العرض: ${I18N[state.lang].viewModes[state.viewMode]}`);
+      });
+
+      // Top Overflow Menu
+      const overflowMenu = document.getElementById('topOverflowDropdown');
+      document.getElementById('btnTopOverflow').addEventListener('click', (e) => {
+        e.stopPropagation();
+        overflowMenu.classList.toggle('hidden');
+      });
+      document.addEventListener('click', () => overflowMenu.classList.add('hidden'));
+
+      overflowMenu.querySelectorAll('[data-overflow-action]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const act = btn.getAttribute('data-overflow-action');
+          overflowMenu.classList.add('hidden');
+          if (act === 'sort') document.getElementById('modalSortOrder').classList.remove('hidden');
+          if (act === 'view') document.getElementById('btnCycleViewMode').click();
+          if (act === 'colorFilter') {
+            renderColorFilterModalGrid();
+            document.getElementById('modalColorFilter').classList.remove('hidden');
+          }
+          if (act === 'masterPin') {
+            state.moreSubTab = 'settings';
+            switchTab('more');
+          }
+          if (act === 'backup') {
+            document.getElementById('btnExportBackupJson').click();
+          }
+        });
+      });
+
+      // 3x3 Color Filter Modal
+      document.getElementById('btnOpenColorFilter').addEventListener('click', () => {
+        renderColorFilterModalGrid();
+        document.getElementById('modalColorFilter').classList.remove('hidden');
+      });
+      document.getElementById('btnCloseColorFilterModal').addEventListener('click', () => {
+        document.getElementById('modalColorFilter').classList.add('hidden');
+      });
+      document.getElementById('btnShowAllColors').addEventListener('click', () => {
+        state.colorFilter = null;
+        document.getElementById('modalColorFilter').classList.add('hidden');
+        renderAll();
+      });
+      document.getElementById('btnClearColorFilter').addEventListener('click', () => {
+        state.colorFilter = null;
+        renderAll();
+      });
+
+      // Sort Order Modal
+      document.getElementById('btnOpenSortModal').addEventListener('click', () => {
+        document.getElementById('modalSortOrder').classList.remove('hidden');
+      });
+      document.getElementById('btnCloseSortModal').addEventListener('click', () => {
+        document.getElementById('modalSortOrder').classList.add('hidden');
+      });
+      document.querySelectorAll('#sortOptionsList [data-sort-val]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.sortBy = btn.getAttribute('data-sort-val');
+          document.querySelectorAll('#sortOptionsList .sort-check').forEach(c => c.classList.add('hidden'));
+          btn.querySelector('.sort-check').classList.remove('hidden');
+          document.getElementById('modalSortOrder').classList.add('hidden');
+          saveState();
+          renderAll();
+        });
+      });
+
+      // FAB (+) Add Note Modal
+      document.getElementById('btnFabAdd').addEventListener('click', () => {
+        document.getElementById('modalAddType').classList.remove('hidden');
+      });
+      document.getElementById('btnCloseAddTypeModal').addEventListener('click', () => {
+        document.getElementById('modalAddType').classList.add('hidden');
+      });
+      document.getElementById('btnCreateTextNote').addEventListener('click', () => {
+        document.getElementById('modalAddType').classList.add('hidden');
+        createNewNote('text', state.currentTab === 'calendar' ? state.selectedCalendarDate : '');
+      });
+      document.getElementById('btnCreateChecklistNote').addEventListener('click', () => {
+        document.getElementById('modalAddType').classList.add('hidden');
+        createNewNote('checklist', state.currentTab === 'calendar' ? state.selectedCalendarDate : '');
+      });
+
+      // Master PIN Prompt Modal
+      function handlePinVerify() {
+        const val = document.getElementById('inputVerifyPin').value.trim();
+        if (val === state.masterPin) {
+          document.getElementById('modalPinPrompt').classList.add('hidden');
+          const nid = state.pendingPinNoteId;
+          state.unlockedNoteIds[nid] = true;
+          const note = state.notes.find(n => n.id === nid);
+          if (note) {
+            if (state.pendingPinAction === 'open') {
+              openEditorWithNote(note);
+            } else if (state.pendingPinAction === 'toggleLock') {
+              note.locked = !note.locked;
+              saveState();
+              syncEditorUI(note);
+              showToast(note.locked ? 'تم قفل الملاحظة 🔒' : 'تم إلغاء قفل الملاحظة 🔓');
+            }
+          }
+        } else {
+          document.getElementById('pinErrorMsg').classList.remove('hidden');
+        }
+      }
+      document.getElementById('btnConfirmPinPrompt').addEventListener('click', handlePinVerify);
+      document.getElementById('inputVerifyPin').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handlePinVerify();
+      });
+      document.getElementById('btnCancelPinPrompt').addEventListener('click', () => {
+        document.getElementById('modalPinPrompt').classList.add('hidden');
+      });
+      document.getElementById('btnClosePinPrompt2').addEventListener('click', () => {
+        document.getElementById('modalPinPrompt').classList.add('hidden');
+      });
+
+      // Editor Controls
+      document.getElementById('btnEditorSaveBack').addEventListener('click', () => {
+        saveState();
+        closeEditor();
+        showToast('تم حفظ الملاحظة تلقائياً ✓');
+      });
+
+      document.getElementById('btnEditorColorSwatch').addEventListener('click', () => {
+        state.editorColorStripOpen = !state.editorColorStripOpen;
+        document.getElementById('editorColorPickerStrip').classList.toggle('hidden', !state.editorColorStripOpen);
+        saveState();
+      });
+
+      function applyArbitraryHexToCurrentNote(hexVal, tintVal) {
+        const note = state.notes.find(n => n.id === state.editingNoteId);
+        if (!note) return;
+        note.customHex = normalizeHex(hexVal);
+        if (tintVal !== undefined) note.customTint = Number(tintVal);
+        note.modifiedDate = Date.now();
+        saveState();
+        syncEditorUI(note);
+      }
+
+      document.getElementById('inputEditorFreeColor').addEventListener('input', (e) => {
+        applyArbitraryHexToCurrentNote(e.target.value);
+      });
+
+      document.getElementById('inputHeaderDirectColor').addEventListener('input', (e) => {
+        applyArbitraryHexToCurrentNote(e.target.value);
+      });
+
+      document.getElementById('inputEditorHueSlider').addEventListener('input', (e) => {
+        const hex = hslToHex(Number(e.target.value), 85, 52);
+        applyArbitraryHexToCurrentNote(hex);
+      });
+
+      document.getElementById('inputEditorTintSlider').addEventListener('input', (e) => {
+        const note = state.notes.find(n => n.id === state.editingNoteId);
+        if (!note) return;
+        const currentPal = getPalette(note);
+        applyArbitraryHexToCurrentNote(note.customHex || currentPal.stripe, Number(e.target.value));
+      });
+
+      document.getElementById('inputEditorHexCode').addEventListener('input', (e) => {
+        const val = e.target.value.trim();
+        if (/^#?[0-9a-fA-F]{6}$/.test(val)) {
+          applyArbitraryHexToCurrentNote(val);
+        }
+      });
+
+      document.getElementById('btnSaveCustomColorToPalette').addEventListener('click', () => {
+        const note = state.notes.find(n => n.id === state.editingNoteId);
+        if (!note) return;
+        const currentPal = getPalette(note);
+        const hex = normalizeHex(note.customHex || currentPal.stripe);
+        const newIdx = 9 + (state.customPalettes ? state.customPalettes.length : 0);
+        const customPal = buildPaletteFromHex(hex, note.customTint || 84, hex.toUpperCase(), newIdx);
+        if (!state.customPalettes) state.customPalettes = [];
+        state.customPalettes.push(customPal);
+        note.colorIndex = newIdx;
+        note.customHex = null;
+        saveState();
+        syncEditorUI(note);
+        showToast(`تم حفظ اللون ${hex.toUpperCase()} في لوحة ألوانك! 🎨`);
+      });
+
+      // Modal Free Color Creator
+      document.getElementById('inputModalFreeColor').addEventListener('input', (e) => {
+        document.getElementById('modalCustomHexPreview').textContent = e.target.value.toUpperCase();
+      });
+
+      document.getElementById('btnModalAddCustomColor').addEventListener('click', () => {
+        const hex = normalizeHex(document.getElementById('inputModalFreeColor').value);
+        const nameInp = document.getElementById('inputModalFreeColorName');
+        const label = nameInp.value.trim() || hex.toUpperCase();
+        if (!state.customPalettes) state.customPalettes = [];
+        const newIdx = 9 + state.customPalettes.length;
+        const customPal = buildPaletteFromHex(hex, 84, label, newIdx);
+        state.customPalettes.push(customPal);
+        state.colorLabels[newIdx] = label;
+        nameInp.value = '';
+        saveState();
+        renderColorFilterModalGrid();
+        renderAll();
+        showToast(`تمت إضافة اللون "${label}" إلى لوحة الألوان! 🌈`);
+      });
+
+      document.getElementById('editorTitleInput').addEventListener('input', (e) => {
+        const note = state.notes.find(n => n.id === state.editingNoteId);
+        if (note) {
+          note.title = e.target.value;
+          note.modifiedDate = Date.now();
+          saveState();
+        }
+      });
+
+      document.getElementById('editorTextarea').addEventListener('input', (e) => {
+        const note = state.notes.find(n => n.id === state.editingNoteId);
+        if (note) {
+          note.content = e.target.value;
+          note.modifiedDate = Date.now();
+          updateEditorCountsAndLinks(note.content);
+          saveState();
+        }
+      });
+
+      document.getElementById('btnEditorToggleDone').addEventListener('click', () => {
+        const note = state.notes.find(n => n.id === state.editingNoteId);
+        if (note) {
+          note.checked = !note.checked;
+          note.modifiedDate = Date.now();
+          saveState();
+          syncEditorUI(note);
+          showToast(note.checked ? 'تم التأشير كمنجز (شطب العنوان) ✓' : 'تم إلغاء الشطب');
+        }
+      });
+
+      document.getElementById('btnEditorToggleLock').addEventListener('click', () => {
+        const note = state.notes.find(n => n.id === state.editingNoteId);
+        if (!note) return;
+        note.locked = !note.locked;
+        if (note.locked) state.unlockedNoteIds[note.id] = true;
+        saveState();
+        syncEditorUI(note);
+        showToast(note.locked ? 'تم قفل الملاحظة بكلمة المرور الرئيسية 🔒' : 'تم إلغاء قفل الملاحظة 🔓');
+      });
+
+      document.getElementById('btnEditorToggleWidget').addEventListener('click', () => {
+        const note = state.notes.find(n => n.id === state.editingNoteId);
+        if (!note) return;
+        note.widgetPinned = !note.widgetPinned;
+        saveState();
+        syncEditorUI(note);
+        showToast(note.widgetPinned ? 'تم تثبيت الملاحظة في ودجت الشاشة الرئيسية 📌' : 'تم إلغاء التثبيت من الودجت');
+      });
+
+      document.getElementById('btnEditorDeleteNote').addEventListener('click', () => {
+        const note = state.notes.find(n => n.id === state.editingNoteId);
+        if (!note) return;
+        note.status = 'trash';
+        saveState();
+        closeEditor();
+        showToast('نُقلت الملاحظة إلى سلة المحذوفات 🗑️');
+      });
+
+      document.getElementById('btnEditorArchiveNote').addEventListener('click', () => {
+        const note = state.notes.find(n => n.id === state.editingNoteId);
+        if (!note) return;
+        note.status = 'archived';
+        saveState();
+        closeEditor();
+        showToast('تمت أرشفة الملاحظة في الأرشيف 📥');
+      });
+
+      document.getElementById('btnEditorCopyNote').addEventListener('click', () => {
+        const note = state.notes.find(n => n.id === state.editingNoteId);
+        if (!note) return;
+        const textToCopy = note.type === 'checklist'
+          ? note.title + '\n' + (note.items || []).map(i => `${i.checked ? '[x]' : '[ ]'} ${i.text}`).join('\n')
+          : `${note.title}\n${note.content}`;
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(textToCopy);
+          } else {
+            const ta = document.createElement('textarea');
+            ta.value = textToCopy;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+          }
+        } catch (e) {}
+        showToast('تم نسخ محتوى الملاحظة إلى الحافظة 📋');
+      });
+
+      document.getElementById('editorReminderDate').addEventListener('change', (e) => {
+        const note = state.notes.find(n => n.id === state.editingNoteId);
+        if (note) {
+          note.reminderDate = e.target.value;
+          saveState();
+          showToast(note.reminderDate ? `تم ضبط التذكير ليوم ${note.reminderDate} ⏰` : 'تم مسح التذكير');
+        }
+      });
+
+      document.getElementById('btnClearReminderDate').addEventListener('click', () => {
+        const note = state.notes.find(n => n.id === state.editingNoteId);
+        if (note) {
+          note.reminderDate = '';
+          document.getElementById('editorReminderDate').value = '';
+          saveState();
+          showToast('تم مسح التذكير');
+        }
+      });
+
+      // Lined Paper & Font Size & Convert Note Type
+      document.getElementById('btnToggleLinedPaper').addEventListener('click', () => {
+        state.editorLinedPaper = !state.editorLinedPaper;
+        document.getElementById('btnToggleLinedPaper').textContent =
+          state.editorLinedPaper ? 'أسطر الدفتر: مفعلة' : 'أسطر الدفتر: مخفية';
+        document.getElementById('editorTextarea').classList.toggle('lined-paper', state.editorLinedPaper);
+        document.getElementById('editorChecklistItemsList').classList.toggle('lined-paper', state.editorLinedPaper);
+      });
+
+      const fontSizes = ['text-sm', 'text-base', 'text-lg', 'text-xl'];
+      const fontLabels = ['صغير', 'متوسط', 'كبير', 'كبير جداً'];
+      let currentFontIdx = 1;
+      document.getElementById('btnCycleFontSize').addEventListener('click', () => {
+        const ta = document.getElementById('editorTextarea');
+        ta.classList.remove(...fontSizes);
+        currentFontIdx = (currentFontIdx + 1) % fontSizes.length;
+        ta.classList.add(fontSizes[currentFontIdx]);
+        document.getElementById('btnCycleFontSize').textContent = `الخط: ${fontLabels[currentFontIdx]}`;
+      });
+
+      document.getElementById('btnConvertNoteType').addEventListener('click', () => {
+        const note = state.notes.find(n => n.id === state.editingNoteId);
+        if (!note) return;
+        if (note.type === 'text') {
+          const lines = (note.content || '').split('\n').map(s => s.trim()).filter(Boolean);
+          note.items = lines.length > 0
+            ? lines.map((l, idx) => ({ id: 'conv_' + Date.now() + '_' + idx, text: l, checked: false }))
+            : [{ id: 'conv_' + Date.now(), text: note.title || 'عنصر 1', checked: false }];
+          note.type = 'checklist';
+        } else {
+          note.content = (note.items || []).map(i => (i.checked ? '✓ ' : '• ') + i.text).join('\n');
+          note.type = 'text';
+        }
+        saveState();
+        syncEditorUI(note);
+        showToast(note.type === 'checklist' ? 'تم التحويل إلى قائمة مهام ☑️' : 'تم التحويل إلى ملاحظة نصية 📝');
+      });
+
+      // Checklist Editor Add Item & Bulk Actions
+      function addChecklistItemFromInput() {
+        const note = state.notes.find(n => n.id === state.editingNoteId);
+        const inp = document.getElementById('inputNewChecklistItem');
+        const text = inp.value.trim();
+        if (!note || !text) return;
+        note.items.push({
+          id: 'item_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+          text: text,
+          checked: false
+        });
+        inp.value = '';
+        note.modifiedDate = Date.now();
+        saveState();
+        renderEditorChecklistItems(note);
+      }
+      document.getElementById('btnAddChecklistItem').addEventListener('click', addChecklistItemFromInput);
+      document.getElementById('inputNewChecklistItem').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') addChecklistItemFromInput();
+      });
+
+      document.getElementById('btnSortCheckedBottom').addEventListener('click', () => {
+        const note = state.notes.find(n => n.id === state.editingNoteId);
+        if (!note || !note.items) return;
+        note.items.sort((a, b) => Number(a.checked) - Number(b.checked));
+        saveState();
+        renderEditorChecklistItems(note);
+        showToast('تم نقل العناصر المنجزة إلى الأسفل ⬇️');
+      });
+
+      document.getElementById('btnUncheckAllItems').addEventListener('click', () => {
+        const note = state.notes.find(n => n.id === state.editingNoteId);
+        if (!note || !note.items) return;
+        note.items.forEach(i => { i.checked = false; });
+        note.checked = false;
+        saveState();
+        syncEditorUI(note);
+      });
+
+      document.getElementById('btnDeleteCheckedItems').addEventListener('click', () => {
+        const note = state.notes.find(n => n.id === state.editingNoteId);
+        if (!note || !note.items) return;
+        note.items = note.items.filter(i => !i.checked);
+        saveState();
+        renderEditorChecklistItems(note);
+        showToast('تم حذف العناصر المنجزة');
+      });
+
+      // Calendar Navigation
+      document.getElementById('btnCalPrevMonth').addEventListener('click', () => {
+        state.calendarMonth--;
+        if (state.calendarMonth < 0) {
+          state.calendarMonth = 11;
+          state.calendarYear--;
+        }
+        renderCalendarView();
+      });
+      document.getElementById('btnCalNextMonth').addEventListener('click', () => {
+        state.calendarMonth++;
+        if (state.calendarMonth > 11) {
+          state.calendarMonth = 0;
+          state.calendarYear++;
+        }
+        renderCalendarView();
+      });
+      document.getElementById('btnCalToday').addEventListener('click', () => {
+        state.calendarYear = 2026;
+        state.calendarMonth = 9;
+        state.selectedCalendarDate = '2026-10-29';
+        renderCalendarView();
+      });
+      document.getElementById('btnAddNoteForSelectedDate').addEventListener('click', () => {
+        document.getElementById('modalAddType').classList.remove('hidden');
+      });
+
+      // Search Input & Type Chips
+      const searchInp = document.getElementById('searchInput');
+      const clearSearchBtn = document.getElementById('btnClearSearch');
+      searchInp.addEventListener('input', () => {
+        state.searchQuery = searchInp.value;
+        clearSearchBtn.classList.toggle('hidden', !state.searchQuery);
+        renderSearchView();
+      });
+      clearSearchBtn.addEventListener('click', () => {
+        state.searchQuery = '';
+        searchInp.value = '';
+        clearSearchBtn.classList.add('hidden');
+        renderSearchView();
+      });
+      document.querySelectorAll('.search-type-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          state.searchTypeFilter = chip.getAttribute('data-search-type');
+          document.querySelectorAll('.search-type-chip').forEach(c => {
+            c.className = 'search-type-chip px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200';
+          });
+          chip.className = 'search-type-chip px-2.5 py-1 rounded-full text-xs font-semibold bg-teal-600 text-white';
+          renderSearchView();
+        });
+      });
+
+      // Widgets Pin More Button
+      document.getElementById('btnPinMoreWidgets').addEventListener('click', () => {
+        switchTab('notes');
+        showToast('افتح أي ملاحظة واضغط على أيقونة 📌 لتثبيتها في الودجت');
+      });
+
+      // More Sub-Tabs
+      document.querySelectorAll('.more-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.moreSubTab = btn.getAttribute('data-more-tab');
+          renderMoreView();
+        });
+      });
+
+      // Empty Trash
+      document.getElementById('btnEmptyTrash').addEventListener('click', () => {
+        state.notes = state.notes.filter(n => n.status !== 'trash');
+        saveState();
+        renderMoreView();
+        showToast('تم إفراغ سلة المحذوفات نهائياً');
+      });
+
+      // Save Master PIN
+      document.getElementById('btnSaveMasterPin').addEventListener('click', () => {
+        const val = document.getElementById('inputNewMasterPin').value.trim();
+        if (!val) {
+          showToast('يرجى إدخال رمز PIN صالح');
+          return;
+        }
+        state.masterPin = val;
+        document.getElementById('inputNewMasterPin').value = '';
+        saveState();
+        showToast(`تم تحديث كلمة المرور الرئيسية إلى: ${val} 🔒`);
+      });
+
+      // Export Backup JSON
+      document.getElementById('btnExportBackupJson').addEventListener('click', () => {
+        const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(state.notes, null, 2));
+        const a = document.createElement('a');
+        a.setAttribute('href', dataStr);
+        a.setAttribute('download', 'colornote_backup_2026.json');
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        showToast('تم تصدير النسخة الاحتياطية (colornote_backup_2026.json) 💾');
+      });
+
+      // Import Backup JSON
+      document.getElementById('inputImportBackupJson').addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          try {
+            const imported = JSON.parse(ev.target.result);
+            if (Array.isArray(imported)) {
+              state.notes = imported;
+              saveState();
+              renderAll();
+              showToast('تم استيراد النسخة الاحتياطية بنجاح! ✅');
+            }
+          } catch (err) {
+            showToast('ملف JSON غير صالح');
+          }
+        };
+        reader.readAsText(file);
+      });
+
+      // Reset Demo Notes
+      document.getElementById('btnResetDemoNotes').addEventListener('click', () => {
+        state.notes = getInitialDemoNotes();
+        state.folders = getDefaultFolders();
+        state.colorFilter = null;
+        state.selectedFolderId = 'all';
+        state.masterPin = '1234';
+        saveState();
+        renderAll();
+        showToast('تمت استعادة البيانات التجريبية الأصلية بنجاح 🔄');
+      });
+
+      // =====================================================================
+      // NEW KITETECH MERGED LISTENERS (Folders, Rich Text, Drawing, Media)
+      // =====================================================================
+
+      // 1. App Bar Theme Style Cycler (ColorNote / KiteTech Green / Blue / AMOLED)
+      const themeStyles = ['kitetech_green', 'kitetech_blue', 'amoled_black', 'classic'];
+      const themeNames = {
+        kitetech_green: 'مظهر Simple Notepad الأخضر 🟢',
+        kitetech_blue: 'مظهر Simple Notepad الأزرق 🔵',
+        amoled_black: 'الوضع الأسود الداكن AMOLED ⚫',
+        classic: 'مظهر ColorNote الكلاسيكي ⚪'
+      };
+      document.getElementById('btnCycleAppThemeStyle').addEventListener('click', () => {
+        const idx = (themeStyles.indexOf(state.appThemeStyle) + 1) % themeStyles.length;
+        state.appThemeStyle = themeStyles[idx];
+        saveState();
+        renderAll();
+        showToast(themeNames[state.appThemeStyle]);
+      });
+
+      // 2. Folders Bar & Folder Creator
+      document.getElementById('btnToggleFoldersListMode').addEventListener('click', () => {
+        state.foldersDirectoryOpen = !state.foldersDirectoryOpen;
+        renderNotesView();
+      });
+
+      document.getElementById('btnOpenNewFolderBox').addEventListener('click', () => {
+        document.getElementById('newFolderInlineBox').classList.toggle('hidden');
+        document.getElementById('inputNewFolderName').focus();
+      });
+
+      document.getElementById('btnCancelAddFolder').addEventListener('click', () => {
+        document.getElementById('newFolderInlineBox').classList.add('hidden');
+      });
+
+      document.getElementById('btnConfirmAddFolder').addEventListener('click', () => {
+        const inp = document.getElementById('inputNewFolderName');
+        const name = inp.value.trim();
+        if (!name) return;
+        const newId = 'folder_' + Date.now();
+        if (!state.folders) state.folders = getDefaultFolders();
+        state.folders.push({ id: newId, nameAr: name, nameEn: name });
+        state.selectedFolderId = newId;
+        inp.value = '';
+        document.getElementById('newFolderInlineBox').classList.add('hidden');
+        saveState();
+        renderNotesView();
+        showToast(`تم إنشاء المجلد "📁 ${name}"`);
+      });
+
+      document.getElementById('editorFolderSelect').addEventListener('change', (e) => {
+        const note = state.notes.find(n => n.id === state.editingNoteId);
+        if (note) {
+          note.folderId = e.target.value;
+          note.modifiedDate = Date.now();
+          saveState();
+          showToast('تم نقل الملاحظة إلى المجلد المحدد 📁');
+        }
+      });
+
+      // 3. Create Drawing Note from (+) Modal
+      document.getElementById('btnCreateDrawingNote').addEventListener('click', () => {
+        document.getElementById('modalAddType').classList.add('hidden');
+        createNewNote('drawing', state.currentTab === 'calendar' ? state.selectedCalendarDate : '');
+      });
+
+      // 4. Rich Text Formatting (KiteTech Wordpad B, I, U, S, Highlight, Font Color, Font Family)
+      const richEditable = document.getElementById('editorRichEditable');
+      richEditable.addEventListener('input', () => {
+        const note = state.notes.find(n => n.id === state.editingNoteId);
+        if (!note) return;
+        note.richHtml = richEditable.innerHTML;
+        note.content = richEditable.innerText || '';
+        document.getElementById('editorTextarea').value = note.content;
+        note.modifiedDate = Date.now();
+        updateEditorCountsAndLinks(note.content);
+        saveState();
+      });
+
+      function execRichFormat(cmd, val = null) {
+        richEditable.focus();
+        try {
+          document.execCommand(cmd, false, val);
+        } catch (e) {}
+        richEditable.dispatchEvent(new Event('input'));
+      }
+
+      document.getElementById('btnFmtBold').addEventListener('click', () => execRichFormat('bold'));
+      document.getElementById('btnFmtItalic').addEventListener('click', () => execRichFormat('italic'));
+      document.getElementById('btnFmtUnderline').addEventListener('click', () => execRichFormat('underline'));
+      document.getElementById('btnFmtStrike').addEventListener('click', () => execRichFormat('strikeThrough'));
+
+      document.getElementById('btnFmtHighlight').addEventListener('click', () => {
+        const col = document.getElementById('inputFmtHighlightColor').value;
+        execRichFormat('hiliteColor', col);
+        showToast('تم تظليل النص المحدد ✨');
+      });
+      document.getElementById('inputFmtHighlightColor').addEventListener('input', (e) => {
+        execRichFormat('hiliteColor', e.target.value);
+      });
+
+      document.getElementById('inputFmtTextColor').addEventListener('input', (e) => {
+        execRichFormat('foreColor', e.target.value);
+      });
+
+      document.getElementById('selectFmtFontFamily').addEventListener('change', (e) => {
+        richEditable.style.fontFamily = e.target.value;
+        document.getElementById('editorTextarea').style.fontFamily = e.target.value;
+        showToast('تم تغيير نوع خط الملاحظة');
+      });
+
+      document.getElementById('btnFmtClear').addEventListener('click', () => {
+        execRichFormat('removeFormat');
+        showToast('تم مسح التنسيقات من النص المحدد');
+      });
+
+      document.getElementById('btnEditorUndo').addEventListener('click', () => execRichFormat('undo'));
+      document.getElementById('btnEditorRedo').addEventListener('click', () => execRichFormat('redo'));
+
+      // Also sync Lined Paper & Font Size with #editorRichEditable
+      document.getElementById('btnToggleLinedPaper').addEventListener('click', () => {
+        richEditable.classList.toggle('lined-paper', state.editorLinedPaper);
+      });
+      document.getElementById('btnCycleFontSize').addEventListener('click', () => {
+        richEditable.classList.remove(...fontSizes);
+        richEditable.classList.add(fontSizes[currentFontIdx]);
+      });
+
+      // 5. Picture Attachments (🖼️)
+      document.getElementById('inputEditorAttachImage').addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        const note = state.notes.find(n => n.id === state.editingNoteId);
+        if (!file || !note) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          if (!note.attachments) note.attachments = [];
+          note.attachments.push({ name: file.name, src: ev.target.result });
+          note.modifiedDate = Date.now();
+          saveState();
+          renderNoteAttachmentsStrip(note);
+          showToast('تم إرفاق الصورة داخل الملاحظة 🖼️');
+        };
+        reader.readAsDataURL(file);
+      });
+
+      // 6. Speech-to-Text Voice Dictation (🎙️)
+      document.getElementById('btnEditorVoiceDictate').addEventListener('click', () => {
+        const note = state.notes.find(n => n.id === state.editingNoteId);
+        if (!note) return;
+        const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRec) {
+          try {
+            const rec = new SpeechRec();
+            rec.lang = state.lang === 'ar' ? 'ar-SA' : 'en-US';
+            showToast('🎙️ تفضل بالتحدث الآن للإملاء الصوتي...');
+            rec.onresult = (ev) => {
+              const transcript = ev.results[0][0].transcript;
+              note.content = (note.content ? note.content + ' ' : '') + transcript;
+              note.richHtml = (note.richHtml ? note.richHtml + ' ' : '') + escapeHtml(transcript);
+              saveState();
+              syncEditorUI(note);
+              showToast('تم تحويل الصوت إلى نص بنجاح ✅');
+            };
+            rec.onerror = () => {
+              const sampleVoiceText = state.lang === 'ar' ? ' [ملاحظة صوتية مسجلة: تذكير بمراجعة مهام اليوم]' : ' [Voice note: Review daily tasks]';
+              note.content += sampleVoiceText;
+              note.richHtml = (note.richHtml || escapeHtml(note.content)) + `<span style="color:#0d9488;font-weight:bold;">${sampleVoiceText}</span>`;
+              saveState();
+              syncEditorUI(note);
+              showToast('تم إدراج النص الصوتي 🎙️');
+            };
+            rec.start();
+            return;
+          } catch (err) {}
+        }
+        const fallbackVoice = state.lang === 'ar' ? ' [🎙️ إملاء صوتي سريع: تم تسجيل الفكرة بنجاح]' : ' [🎙️ Voice Dictation: Idea recorded]';
+        note.content = (note.content || '') + fallbackVoice;
+        note.richHtml = (note.richHtml || '') + `<span style="color:#0d9488;font-weight:bold;">${fallbackVoice}</span>`;
+        saveState();
+        syncEditorUI(note);
+        showToast('تم إدراج الملاحظة الصوتية بنجاح 🎙️');
+      });
+
+      // 7. Interactive Drawing Studio Events (🎨)
+      const drawCanvas = document.getElementById('drawingCanvas');
+
+      document.getElementById('btnEditorSwitchToDraw').addEventListener('click', () => {
+        const note = state.notes.find(n => n.id === state.editingNoteId);
+        if (!note) return;
+        document.getElementById('editorTextModeContainer').classList.add('hidden');
+        document.getElementById('editorChecklistModeContainer').classList.add('hidden');
+        document.getElementById('editorDrawingModeContainer').classList.remove('hidden');
+        initOrLoadDrawingCanvas(note);
+      });
+
+      document.getElementById('btnDrawBackToText').addEventListener('click', () => {
+        const note = state.notes.find(n => n.id === state.editingNoteId);
+        if (!note) return;
+        note.drawingDataUrl = drawCanvas.toDataURL();
+        note.modifiedDate = Date.now();
+        if (note.type === 'drawing') {
+          saveState();
+          closeEditor();
+          showToast('تم حفظ لوحة الرسم والكتابة اليدوية 🎨✓');
+        } else {
+          saveState();
+          syncEditorUI(note);
+          showToast('تم إرفاق الرسمة داخل ملاحظتك 🎨✓');
+        }
+      });
+
+      function setDrawTool(tool) {
+        currentDrawTool = tool;
+        const btns = {
+          pen: document.getElementById('btnDrawToolPen'),
+          fill: document.getElementById('btnDrawToolFill'),
+          eraser: document.getElementById('btnDrawToolEraser')
+        };
+        Object.keys(btns).forEach(k => {
+          if (k === tool) {
+            btns[k].className = 'px-2.5 py-1 rounded text-xs font-bold bg-slate-900 text-white shadow';
+          } else {
+            btns[k].className = 'px-2.5 py-1 rounded text-xs font-bold bg-white/80 text-slate-800 hover:bg-white';
+          }
+        });
+      }
+
+      document.getElementById('btnDrawToolPen').addEventListener('click', () => setDrawTool('pen'));
+      document.getElementById('btnDrawToolFill').addEventListener('click', () => setDrawTool('fill'));
+      document.getElementById('btnDrawToolEraser').addEventListener('click', () => setDrawTool('eraser'));
+
+      function getCanvasCoords(ev) {
+        const rect = drawCanvas.getBoundingClientRect();
+        const clientX = ev.touches ? ev.touches[0].clientX : ev.clientX;
+        const clientY = ev.touches ? ev.touches[0].clientY : ev.clientY;
+        return {
+          x: (clientX - rect.left) * (drawCanvas.width / rect.width),
+          y: (clientY - rect.top) * (drawCanvas.height / rect.height)
+        };
+      }
+
+      function startDraw(ev) {
+        if (!drawCtx) return;
+        ev.preventDefault();
+        const pos = getCanvasCoords(ev);
+        const col = document.getElementById('inputDrawBrushColor').value;
+        const size = Number(document.getElementById('inputDrawStrokeWidth').value || 5);
+
+        if (currentDrawTool === 'fill') {
+          canvasFloodFill(drawCtx, pos.x, pos.y, col);
+          pushDrawSnapshot();
+          const note = state.notes.find(n => n.id === state.editingNoteId);
+          if (note) { note.drawingDataUrl = drawCanvas.toDataURL(); saveState(); }
+          return;
+        }
+
+        isDrawingStroke = true;
+        drawCtx.beginPath();
+        drawCtx.moveTo(pos.x, pos.y);
+        drawCtx.lineCap = 'round';
+        drawCtx.lineJoin = 'round';
+        drawCtx.lineWidth = size;
+        drawCtx.strokeStyle = currentDrawTool === 'eraser' ? '#ffffff' : col;
+      }
+
+      function moveDraw(ev) {
+        if (!isDrawingStroke || !drawCtx) return;
+        ev.preventDefault();
+        const pos = getCanvasCoords(ev);
+        drawCtx.lineTo(pos.x, pos.y);
+        drawCtx.stroke();
+      }
+
+      function endDraw() {
+        if (!isDrawingStroke) return;
+        isDrawingStroke = false;
+        pushDrawSnapshot();
+        const note = state.notes.find(n => n.id === state.editingNoteId);
+        if (note) {
+          note.drawingDataUrl = drawCanvas.toDataURL();
+          saveState();
+        }
+      }
+
+      drawCanvas.addEventListener('mousedown', startDraw);
+      drawCanvas.addEventListener('mousemove', moveDraw);
+      window.addEventListener('mouseup', endDraw);
+      drawCanvas.addEventListener('touchstart', startDraw, { passive: false });
+      drawCanvas.addEventListener('touchmove', moveDraw, { passive: false });
+      window.addEventListener('touchend', endDraw);
+
+      document.getElementById('btnDrawUndo').addEventListener('click', () => {
+        if (drawUndoStack.length <= 1) return;
+        drawRedoStack.push(drawUndoStack.pop());
+        const prevUrl = drawUndoStack[drawUndoStack.length - 1];
+        const img = new Image();
+        img.onload = () => {
+          drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+          drawCtx.drawImage(img, 0, 0);
+        };
+        img.src = prevUrl;
+      });
+
+      document.getElementById('btnDrawRedo').addEventListener('click', () => {
+        if (drawRedoStack.length === 0) return;
+        const nextUrl = drawRedoStack.pop();
+        drawUndoStack.push(nextUrl);
+        const img = new Image();
+        img.onload = () => {
+          drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+          drawCtx.drawImage(img, 0, 0);
+        };
+        img.src = nextUrl;
+      });
+
+      document.getElementById('btnDrawClear').addEventListener('click', () => {
+        if (!drawCtx) return;
+        drawCtx.fillStyle = '#ffffff';
+        drawCtx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
+        pushDrawSnapshot();
+        const note = state.notes.find(n => n.id === state.editingNoteId);
+        if (note) { note.drawingDataUrl = drawCanvas.toDataURL(); saveState(); }
+      });
+
+      document.getElementById('btnDrawDemoLandscape').addEventListener('click', () => {
+        if (!drawCtx) return;
+        paintKiteTechDemoLandscape(drawCtx, drawCanvas.width, drawCanvas.height);
+        pushDrawSnapshot();
+        const note = state.notes.find(n => n.id === state.editingNoteId);
+        if (note) { note.drawingDataUrl = drawCanvas.toDataURL(); saveState(); }
+        showToast('تم رسم لوحة الطبيعة التجريبية (Simple Notepad) 🏞️');
+      });
+    });
+  </script>
+</body>
+</html>

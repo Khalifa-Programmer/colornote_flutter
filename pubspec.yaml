@@ -1,0 +1,29 @@
+name: colornote_simple_notepad_merged
+description: Complete Flutter App merging ColorNote Notepad Notes & KiteTech Simple Notepad Notes (REA Clean-Room Reconstruction).
+publish_to: 'none'
+version: 2.0.0+2
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  provider: ^6.1.2
+  sqflite: ^2.3.3
+  path: ^1.9.0
+  shared_preferences: ^2.2.3
+  intl: ^0.19.0
+  image_picker: ^1.1.2
+  speech_to_text: ^6.6.2
+  share_plus: ^9.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
