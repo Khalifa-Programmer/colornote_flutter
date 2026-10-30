@@ -134,8 +134,9 @@ class _DrawingCanvasScreenState extends State<DrawingCanvasScreen> {
                         onChanged: (v) => setState(() => _strokeWidth = v),
                       ),
                     ),
+                    
                     IconButton(
-                      icon: Icon(Icons.CleaningServices, color: _isEraser ? Colors.red : Colors.black87),
+                      icon: Icon(Icons.cleaning_services, color: _isEraser ? Colors.red : Colors.black87),
                       tooltip: 'الممحاة (Eraser)',
                       onPressed: () => setState(() => _isEraser = !_isEraser),
                     ),
